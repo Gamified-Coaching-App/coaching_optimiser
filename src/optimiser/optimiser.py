@@ -3,6 +3,9 @@ import tensorflow as tf
 from tensorflow.keras import models, layers, optimizers
 from tensorflow.keras.models import load_model
 from preprocessor import Preprocessor
+import os 
+import xgboost as xgb
+import pickle
 
 class ContextualBandit:
     """
@@ -94,8 +97,24 @@ class Environment:
         """
         self.data = data
         self.subjective_parameter_forecaster = tf.saved_model.load('final/subjective_parameter')
+        self.predict_subjective_parameters = self.subjective_parameter_forecaster.signatures['serving_default']
         self.injury_model = tf.saved_model.load('final/injury')
+        self.predict_injury_risk = self.injury_model.signatures['serving_default']
         print("Environment initialized")
+
+    def load_injury_models(self):
+        """
+        Loads all XGBoost models from pickle files in the specified directory.
+        """
+        directory = '../../coaching_injury_prediction_model/model'
+        models = []
+        for filename in os.listdir(directory):
+            if filename.endswith('.pkl'):
+                filepath = os.path.join(directory, filename)
+                with open(filepath, 'rb') as file:
+                    model = pickle.load(file)
+                    models.append(model)
+        return models
 
     def get_state(self, index):
         """
@@ -180,7 +199,7 @@ class Environment:
 
         # Using the correct signature to make predictions
         predict = self.subjective_parameter_forecaster.signatures['serving_default']
-        prediction = predict(tf.convert_to_tensor(concatenated_data, dtype=tf.float32))['output_0']
+        prediction = self.predict_subjective_parameters(tf.convert_to_tensor(concatenated_data, dtype=tf.float32))['output_0']
         prediction = prediction.numpy()
         concatenated_data[0, -7:, -3:] = prediction[0, -7:, -3:]
 
