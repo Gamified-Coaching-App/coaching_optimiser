@@ -1,20 +1,12 @@
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import train_test_split
-from imblearn.under_sampling import TomekLinks
-from imblearn.over_sampling import SMOTE
 import tensorflow as tf
-import torch
-from imblearn.combine import SMOTETomek
-from pyts.image import GramianAngularField
-from scipy.spatial.distance import pdist, squareform
-from numpy.random import default_rng
 
 
-class Preprocessor:
+class RunningDataset:
     def __init__(self):
-        self.filename = 'data/day_approach_maskedID_timeseries.csv'
+        self.filename = '../data/day_approach_maskedID_timeseries.csv'
         self.WINDOW_DAYS = 7
         self.base_metrics = ['nr. sessions', 'total km', 'km Z3-4', 'km Z5-T1-T2', 'km sprinting', 
                              'strength training', 'hours alternative', 'perceived exertion', 
