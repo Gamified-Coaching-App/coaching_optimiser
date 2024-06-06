@@ -14,10 +14,16 @@ def get_progress(states, actions):
 def get_injury_score(self, states, actions):
     data = prepare_data_subjective_parameter_forecaster(states, actions)
     full_data = self.predict_subjective_parameters(data)['output_0']
-    data = prepare_data_injury_model(full_data)
-    injury_risk = self.predict_injury_risk(data)['output_0']
-    return injury_risk
+    df = prepare_data_injury_model(full_data)
+   
+    all_predictions = []
+    for model in self.injury_models:
+        predictions = model.predict_proba(df)[: ,1].astype('float32')
+        all_predictions.append(predictions)
 
+    all_predictions_tensor = tf.stack(all_predictions, axis=0)
+    mean_predictions = tf.reduce_mean(all_predictions_tensor, axis=0)
+    return mean_predictions
 
 def get_hard_penalty(states, actions):
     HARD_PENALTY = 10000.0

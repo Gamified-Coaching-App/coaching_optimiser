@@ -72,4 +72,15 @@ def prepare_data_injury_model(data):
         pd.DataFrame: DataFrame with shape [batch, 70], where each column is named according to the
                       variable and day it represents.
     """
-    return data[:, -7:, :]
+    sliced_data = data[:, -7:, :]
+    reshaped_data = tf.reshape(sliced_data, [sliced_data.shape[0], -1])
+
+    variable_list = ['nr. sessions', 'total km', 'km Z3-4', 'km Z5-T1-T2', 'km sprinting',
+                     'strength training', 'hours alternative', 'perceived exertion',
+                     'perceived trainingSuccess', 'perceived recovery']
+
+    column_names = [f"{var}.{i}" for i in range(7) for var in variable_list]
+
+    df = pd.DataFrame(reshaped_data.numpy(), columns=column_names)
+
+    return df

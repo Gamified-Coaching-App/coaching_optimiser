@@ -19,9 +19,9 @@ class Environment:
         self.data = data
         self.subjective_parameter_forecaster = tf.saved_model.load('../../coaching_subjective_parameter_forecast/model/subjective_parameter')
         self.predict_subjective_parameters = self.subjective_parameter_forecaster.signatures['serving_default']
-        self.injury_model = tf.saved_model.load('../../coaching_injury_prediction_model/exploration/LSTM/model/injury_prediction')
-        self.predict_injury_risk = self.injury_model.signatures['serving_default']
-        #self.injury_models = self.load_injury_models()
+        # self.injury_model = tf.saved_model.load('../../coaching_injury_prediction_model/exploration/LSTM/model/injury_prediction')
+        # self.predict_injury_risk = self.injury_model.signatures['serving_default']
+        self.injury_models = self.load_injury_models()
         print("Environment initialized")
 
     def load_injury_models(self):
@@ -50,6 +50,7 @@ class Environment:
         """
         progress = get_progress(states, actions)
         injury_scores = get_injury_score(self, states, actions)
+        injury_scores = tf.stop_gradient(injury_scores)
         hard_penalties = get_hard_penalty(states, actions)
         rewards = progress - injury_scores - hard_penalties 
         return rewards
