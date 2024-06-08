@@ -47,10 +47,11 @@ class Environment:
     def get_rewards(self, actions, states):
         """
         Calculates the reward by combining outputs from progress and injury functions, and any penalties.
+        To-Do: Consider making the entire reawrd function non-differentiable using tf.stop_gradient.
         """
         progress = get_progress(states, actions)
         injury_scores = get_injury_score(self, states, actions)
         injury_scores = tf.stop_gradient(injury_scores)
         hard_penalties = get_hard_penalty(states, actions)
-        rewards = progress - injury_scores - hard_penalties 
+        rewards = -hard_penalties + progress #- injury_scores - hard_penalties 
         return rewards

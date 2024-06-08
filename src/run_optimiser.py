@@ -8,7 +8,7 @@ def train_optimiser():
     env = Environment(X_train)
     bandit = ContextualBandit(state_shape=(21,10), action_shape=(7,7), env=env)
     epochs = 50
-    batch_size = 2
+    batch_size = 1000
 
     for epoch in range(epochs):
         for index in range(0, len(X_train), batch_size):

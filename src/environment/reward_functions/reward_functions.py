@@ -37,7 +37,7 @@ def get_hard_penalty(states, actions):
 
     penalties = tf.where(condition, 
                          tf.fill(dims=tf.shape(condition), value=float(HARD_PENALTY)),  
-                         tf.zeros_like(condition, dtype=tf.float32))
+                         tf.fill(dims=tf.shape(condition), value=-0.1))
     
     return penalties
     
