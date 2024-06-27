@@ -25,11 +25,15 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - s3:ListBucket
                   - s3:GetObject
-                Resource: "*"
+                Resource: 
+                  - "arn:aws:s3:::blazemodelregistry"
+                  - "arn:aws:s3:::blazemodelregistry/*"
 
   CoachingOptimiserModel:
     Type: AWS::SageMaker::Model
+    DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       ExecutionRoleArn: !GetAtt CoachingOptimiserSageMakerExecutionRole.Arn
       ModelName: !Sub "${AWS::StackName}-model"
@@ -42,6 +46,7 @@ Resources:
   
   CoachingOptimiserEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
+     DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
       ProductionVariants:
@@ -52,6 +57,7 @@ Resources:
 
   CoachingOptimiserEndpoint:
     Type: AWS::SageMaker::Endpoint
+     DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       EndpointName: !Sub "${AWS::StackName}-endpoint"
       EndpointConfigName: !Ref CoachingOptimiserEndpointConfig
