@@ -46,7 +46,7 @@ Resources:
   
   CoachingOptimiserEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
-     DependsOn: CoachingOptimiserSageMakerExecutionRole
+    DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
       ProductionVariants:
@@ -57,7 +57,7 @@ Resources:
 
   CoachingOptimiserEndpoint:
     Type: AWS::SageMaker::Endpoint
-     DependsOn: CoachingOptimiserSageMakerExecutionRole
+    DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       EndpointName: !Sub "${AWS::StackName}-endpoint"
       EndpointConfigName: !Ref CoachingOptimiserEndpointConfig
