@@ -21,7 +21,7 @@ jobs:
           aws-region: eu-west-2
       - name: Create dummy file in empty directories
         run: |
-            find model/assets -type d -empty -exec touch {}/.keep \;
+            find ./model/optimiser/assets -type d -empty -exec touch {}/.keep \;
 
       - name: Upload model to S3
         run: |
