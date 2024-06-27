@@ -48,7 +48,7 @@ Resources:
     Type: AWS::SageMaker::EndpointConfig
     DependsOn: CoachingOptimiserModel
     Properties:
-      EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
+      EndpointConfigName: !Sub "coaching-optimiser-endpoint-config"
       ProductionVariants:
         - ModelName: "CoachingOptimiser"
           VariantName: AllTraffic
@@ -60,5 +60,5 @@ Resources:
     Type: AWS::SageMaker::Endpoint
     DependsOn: CoachingOptimiserModel
     Properties:
-      EndpointName: !Sub "${AWS::StackName}-endpoint"
+      EndpointName: !Sub "coaching-optimiser-endpoint"
       EndpointConfigName: !Ref CoachingOptimiserEndpointConfig
