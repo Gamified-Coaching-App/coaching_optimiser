@@ -36,7 +36,7 @@ Resources:
     DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       ExecutionRoleArn: !GetAtt CoachingOptimiserSageMakerExecutionRole.Arn
-      ModelName: "CoachingOptModel"
+      ModelName: "CoachingOptimiser"
       PrimaryContainer:
         Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
         ModelDataUrl: !Sub "s3://${S3Bucket}/${S3ModelDataKey}/model/model.tar.gz"
@@ -46,11 +46,11 @@ Resources:
   
   CoachingOptimiserEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
-    DependsOn: CoachingOptimiserSageMakerExecutionRole
+    DependsOn: CoachingOptimiserModel
     Properties:
       EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
       ProductionVariants:
-        - ModelName: "CoachingOptModel"
+        - ModelName: "CoachingOptimiser"
           VariantName: AllTraffic
           ServerlessConfig:
             MemorySizeInMB: 1024
@@ -58,7 +58,7 @@ Resources:
 
   CoachingOptimiserEndpoint:
     Type: AWS::SageMaker::Endpoint
-    DependsOn: CoachingOptimiserSageMakerExecutionRole
+    DependsOn: CoachingOptimiserModel
     Properties:
       EndpointName: !Sub "${AWS::StackName}-endpoint"
       EndpointConfigName: !Ref CoachingOptimiserEndpointConfig
