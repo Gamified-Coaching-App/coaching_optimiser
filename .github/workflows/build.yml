@@ -32,7 +32,7 @@ jobs:
       - name: Upload model tarball and min max json to S3
         run: |
           aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/latest/model/model.tar.gz
-          aws s3 cp ./model.min_max_values.json s3://blazemodelsregistry/optimiser/latest/
+          aws s3 cp ./model/min_max_values.json s3://blazemodelsregistry/optimiser/latest/
 
       - name: Upload inference script to S3
         run: |
