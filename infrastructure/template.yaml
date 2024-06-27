@@ -52,7 +52,7 @@ Resources:
       ProductionVariants:
         - InitialInstanceCount: 1
           InstanceType: ml.t2.small
-          ModelName: !Ref CoachingOptimiserModel
+          ModelName: "CoachingOptimiser"
           VariantName: AllTraffic
 
   CoachingOptimiserEndpoint:
