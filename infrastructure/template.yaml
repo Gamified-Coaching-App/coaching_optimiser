@@ -1,4 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  S3Bucket:
+    Description: "The name of the S3 bucket that contains the model artifacts and inference script"
+    Type: String
+  S3ModelDataKey:
+    Description: "The path to the model artifacts and inference script in the S3 bucket"
+    Type: String
+
 Resources:
   CoachingOptimiserSageMakerExecutionRole:
     Type: AWS::IAM::Role
@@ -27,10 +35,10 @@ Resources:
       ModelName: !Sub "${AWS::StackName}-model"
       PrimaryContainer:
         Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
-        ModelDataUrl: !Sub "s3://${S3Bucket}/optimiser/latest/optimiser"
+        ModelDataUrl: !Sub "s3://${S3Bucket}/${S3ModelDataKey}/optimizer"
         Environment:
           SAGEMAKER_PROGRAM: inference.py
-          SAGEMAKER_SUBMIT_DIRECTORY: !Sub "s3://${S3Bucket}/optimiser/latest"
+          SAGEMAKER_SUBMIT_DIRECTORY: !Sub "s3://${S3Bucket}/${S3ModelDataKey}"
   
   CoachingOptimiserEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig
