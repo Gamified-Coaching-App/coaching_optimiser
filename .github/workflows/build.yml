@@ -23,17 +23,23 @@ jobs:
       - name: Ensure assets directory exists and create placeholder if empty
         run: |
           mkdir -p ./model/optimiser/assets
-          touch ./model/optimiser/assets/.keep
-  
+          [ -z "$(ls -A ./model/optimiser/assets)" ] && touch ./model/optimiser/assets/.keep
 
-
-      - name: Upload model to S3
+      - name: Package model artifacts
         run: |
-          aws s3 sync ./model s3://blazemodelsregistry/optimiser/latest/
+          tar -czvf model.tar.gz -C ./model/optimiser .
+
+      - name: Upload model tarball to S3
+        run: |
+          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/latest/model/model.tar.gz
 
       - name: Upload inference script to S3
         run: |
           aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelsregistry/optimiser/latest/
+
+      - name: List contents of S3 directory
+        run: |
+          aws s3 ls s3://blazemodelsregistry/optimiser/latest/ --recursive
 
   deploy_sagemaker:
     needs: upload_model_to_s3
