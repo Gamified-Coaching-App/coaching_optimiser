@@ -20,9 +20,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
-      - name: Ensure assets directory exists
+      - name: Ensure assets directory exists and create placeholder if empty
         run: |
-          if [ ! -d "./model/optimiser/assets" ]; then mkdir -p ./model/optimiser/assets; fi
+          mkdir -p ./model/optimiser/assets
+          touch ./model/optimiser/assets/.keep
   
 
 
