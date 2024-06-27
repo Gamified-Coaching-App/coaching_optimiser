@@ -2,6 +2,5 @@ data/
 coaching_venv_02/
 .vscode/
 __pycache__/
-model/
 .DS_Store/
 
