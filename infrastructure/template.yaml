@@ -36,7 +36,7 @@ Resources:
     DependsOn: CoachingOptimiserSageMakerExecutionRole
     Properties:
       ExecutionRoleArn: !GetAtt CoachingOptimiserSageMakerExecutionRole.Arn
-      ModelName: !Sub "CoachingOptimiser"
+      ModelName: "CoachingOptModel"
       PrimaryContainer:
         Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
         ModelDataUrl: !Sub "s3://${S3Bucket}/${S3ModelDataKey}/model/model.tar.gz"
@@ -50,10 +50,11 @@ Resources:
     Properties:
       EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
       ProductionVariants:
-        - InitialInstanceCount: 1
-          InstanceType: ml.t2.small
-          ModelName: "CoachingOptimiser"
+        - ModelName: "CoachingOptModel"
           VariantName: AllTraffic
+          ServerlessConfig:
+            MemorySizeInMB: 1024
+            MaxConcurrency: 10
 
   CoachingOptimiserEndpoint:
     Type: AWS::SageMaker::Endpoint
