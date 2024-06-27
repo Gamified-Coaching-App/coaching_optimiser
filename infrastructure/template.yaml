@@ -70,7 +70,7 @@ Resources:
 
   CoachingOptimiserEndpoint:
     Type: AWS::SageMaker::Endpoint
-    DependsOn: CoachingOptimiserModel
+    DependsOn: CoachingOptimiserEndpointConfig
     Properties:
       EndpointName: "coaching-optimiser-endpoint"
       EndpointConfigName: "coaching-optimiser-endpoint-config"
