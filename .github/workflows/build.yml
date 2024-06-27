@@ -22,7 +22,7 @@ jobs:
 
       - name: Upload model to S3
         run: |
-          aws s3 cp --recursive ./model s3://blazemodelsregistry/optimiser/latest/
+          aws s3 sync ./model s3://blazemodelsregistry/optimiser/latest/
 
       - name: Upload inference script to S3
         run: |
