@@ -26,4 +26,4 @@ jobs:
 
       - name: Upload model to S3
         run: |
-          aws s3 cp --recursive $GITHUB_WORKSPACE/model s3://blazemodelregistry/optimiser/latest/
+          aws s3 cp --recursive .$GITHUB_WORKSPACE/model s3://blazemodelregistry/optimiser/latest/
