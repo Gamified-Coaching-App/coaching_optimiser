@@ -19,9 +19,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
-      - name: Create dummy file in empty directories
+
+      - name: Ensure assets directory exists and create placeholder if empty
         run: |
-            find ./model/optimiser/assets -type d -empty -exec touch {}/.keep \;
+          mkdir -p ./model/optimiser/assets
+          [ -z "$(ls -A ./model/optimiser/assets)" ] && touch ./model/optimiser/assets/.keep
+
 
       - name: Upload model to S3
         run: |
