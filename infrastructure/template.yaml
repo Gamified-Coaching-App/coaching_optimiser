@@ -1,87 +1,6 @@
-# REQUIRED: ADD 'DEFAULT' IN SECURITY-GROUP INGRESS
-
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation template to deploy Docker container in ECS using EC2 instances and VPC, with HTTP support.
-
-Parameters:
-  CoachingLatestAmiId:
-    Description: The latest AMI ID for ECS-optimized Amazon Linux 2.
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
-  
-  CoachingDockerImageTag:
-    Description: Docker image tag to deploy
-    Type: String
-    Default: 'latest'
-
-  CoachingDailyTriggerLambdaFunctionName:
-    Description: Name of the Lambda function
-    Type: String
-    Default: 'coaching-processor-daily-trigger'
-
 Resources:
-  CoachingVPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
-
-  CoachingPublicSubnetOne:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref CoachingVPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-      MapPublicIpOnLaunch: true
-
-  CoachingPublicSubnetTwo:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref CoachingVPC
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs '']
-      MapPublicIpOnLaunch: true
-
-  CoachingInternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  CoachingVPCGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref CoachingVPC
-      InternetGatewayId: !Ref CoachingInternetGateway
-
-  CoachingPublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref CoachingVPC
-
-  CoachingPublicRoute:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref CoachingPublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref CoachingInternetGateway
-
-  CoachingSubnetRouteTableAssociationOne:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref CoachingPublicSubnetOne
-      RouteTableId: !Ref CoachingPublicRouteTable
-
-  CoachingSubnetRouteTableAssociationTwo:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref CoachingPublicSubnetTwo
-      RouteTableId: !Ref CoachingPublicRouteTable
-
-  CoachingECSCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: CoachingProcessorCluster
-
-  CoachingEC2InstanceRole:
+  CoachingOptimiserSageMakerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -89,354 +8,42 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: [ec2.amazonaws.com]
-            Action: ['sts:AssumeRole']
-      Path: /
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+              Service: sagemaker.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
-        - PolicyName: "DynamoDBFullAccess"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action: "dynamodb:*"
-                Resource: "arn:aws:dynamodb:*:*:table/*"
-       
-  CoachingEC2InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Path: /
-      Roles:
-        - Ref: CoachingEC2InstanceRole
-
-  CoachingECSInstanceSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow HTTP and SSH access to ECS instances
-      VpcId: !Ref CoachingVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-
-  CoachingEC2LaunchTemplate:
-    Type: AWS::EC2::LaunchTemplate
-    Properties:
-      LaunchTemplateName: CoachingECSLaunchTemplate
-      LaunchTemplateData:
-        InstanceType: t2.micro
-        ImageId: !Ref CoachingLatestAmiId
-        IamInstanceProfile:
-          Arn: !GetAtt CoachingEC2InstanceProfile.Arn
-        SecurityGroupIds:
-          - !Ref CoachingECSInstanceSecurityGroup
-        UserData:
-          Fn::Base64: !Sub |
-            #!/bin/bash
-            echo ECS_CLUSTER=${CoachingECSCluster} >> /etc/ecs/ecs.config
-            echo ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config
-            echo ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true >> /etc/ecs/ecs.config
-
-  CoachingAutoScalingGroup:
-    Type: AWS::AutoScaling::AutoScalingGroup
-    Properties:
-      MinSize: 1
-      MaxSize: 1
-      DesiredCapacity: 1
-      LaunchTemplate:
-        LaunchTemplateId: !Ref CoachingEC2LaunchTemplate
-        Version: !GetAtt CoachingEC2LaunchTemplate.LatestVersionNumber
-      VPCZoneIdentifier:
-        - !Ref CoachingPublicSubnetOne
-        - !Ref CoachingPublicSubnetTwo
-
-  CoachingLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Type: application
-      Subnets:
-        - !Ref CoachingPublicSubnetOne
-        - !Ref CoachingPublicSubnetTwo
-      SecurityGroups:
-        - !Ref CoachingECSInstanceSecurityGroup
-
-  CoachingECSTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Port: 80
-      Protocol: HTTP
-      VpcId: !Ref CoachingVPC
-      TargetType: instance
-      HealthCheckEnabled: true
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: "/health"
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 3
-      UnhealthyThresholdCount: 2
-
-  CoachingHTTPListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    DependsOn:
-      - CoachingLoadBalancer
-      - CoachingECSTargetGroup
-    Properties:
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref CoachingECSTargetGroup
-      LoadBalancerArn: !Ref CoachingLoadBalancer
-      Port: 80
-      Protocol: HTTP
-  
-  CoachingProcessorLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: CoachingProcessor
-
-  CoachingTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    DependsOn: CoachingProcessorLogGroup
-    Properties:
-      Family: coaching-processing-task
-      Cpu: 256
-      Memory: 512
-      NetworkMode: bridge
-      RequiresCompatibilities:
-        - EC2
-      ContainerDefinitions:
-        - Name: coaching-processing-container
-          Image: !Ref CoachingDockerImageTag
-          Essential: true
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-          LogConfiguration:
-            LogDriver: awslogs
-            Options:
-              awslogs-group: CoachingProcessor  
-              awslogs-region: eu-west-2  # Use the region where your CloudWatch Logs group is located
-              awslogs-stream-prefix: ecs  # A prefix for the log stream name
-    
-  CoachingECSService:
-    Type: AWS::ECS::Service
-    DependsOn: CoachingHTTPListener
-    Properties:
-      Cluster: !Ref CoachingECSCluster
-      DesiredCount: 1
-      TaskDefinition: !Ref CoachingTaskDefinition
-      LaunchType: EC2
-      LoadBalancers:
-        - ContainerName: coaching-processing-container
-          ContainerPort: 80
-          TargetGroupArn: !Ref CoachingECSTargetGroup
-      DeploymentConfiguration:
-        MinimumHealthyPercent: 0
-        MaximumPercent: 100
-        
-  DailyLogTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_daily_log"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-        - AttributeName: "timestampLocal"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-        - AttributeName: "timestampLocal"
-          KeyType: "RANGE"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-  HeartRateZonesTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_heart_rate_zones"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-  
-  MeanStdvTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_mean_stdv"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-
-  HealthTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_health"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-        - AttributeName: "timestampLocal"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-        - AttributeName: "timestampLocal"
-          KeyType: "RANGE"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-  UserDataTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_user_data"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-  LoadTargetsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_load_targets"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-  TrainingPlansTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_training_plans"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-  
-  PartnerWorkoutTrackingTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: "coaching_partner_tracking"
-      AttributeDefinitions:
-        - AttributeName: "userId"
-          AttributeType: "S"
-      KeySchema:
-        - AttributeName: "userId"
-          KeyType: "HASH"
-      BillingMode: PROVISIONED
-      ProvisionedThroughput:
-        ReadCapacityUnits: 1
-        WriteCapacityUnits: 1
-
-  # IAM Role for Lambda
-  LambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: LambdaExecutionPolicy
+        - PolicyName: S3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                  - ec2:DescribeNetworkInterfaces
-                  - ec2:CreateNetworkInterface
-                  - ec2:DeleteNetworkInterface
-                  - ec2:DescribeInstances
-                  - ec2:AttachNetworkInterface
-                  - lambda:InvokeFunction
-                  - events:PutEvents
+                  - s3:GetObject
                 Resource: "*"
 
-  # Lambda Function
-  TriggerEcsEndpointFunction:
-    Type: AWS::Lambda::Function
-    DependsOn:
-      - LambdaExecutionRole
-      - CoachingProcessorLogGroup
+  CoachingOptimiserModel:
+    Type: AWS::SageMaker::Model
     Properties:
-      FunctionName: !Ref CoachingDailyTriggerLambdaFunctionName
-      Handler: index.handler
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Runtime: nodejs20.x
-      Timeout: 60
-      Code:
-        ZipFile: |
-          exports.handler = async (event) => {
-            console.log("Hello, World!");
-            return {
-              statusCode: 200,
-              body: JSON.stringify('Hello, World!'),
-            };
-          };
+      ExecutionRoleArn: !GetAtt CoachingOptimiserSageMakerExecutionRole.Arn
+      ModelName: !Sub "${AWS::StackName}-model"
+      PrimaryContainer:
+        Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
+        ModelDataUrl: !Sub "s3://${S3Bucket}/optimizer/latest/optimizer"
+        Environment:
+          SAGEMAKER_PROGRAM: inference.py
+          SAGEMAKER_SUBMIT_DIRECTORY: !Sub "s3://${S3Bucket}/optimizer/latest"
+  
+  CoachingOptimiserEndpointConfig:
+    Type: AWS::SageMaker::EndpointConfig
+    Properties:
+      EndpointConfigName: !Sub "${AWS::StackName}-endpoint-config"
+      ProductionVariants:
+        - InitialInstanceCount: 1
+          InstanceType: ml.t2.small
+          ModelName: !Ref CoachingOptimiserModel
+          VariantName: AllTraffic
 
-  # EventBridge Rule
-  DailyEventRule:
-    Type: AWS::Events::Rule
-    DependsOn: TriggerEcsEndpointFunction
+  CoachingOptimiserEndpoint:
+    Type: AWS::SageMaker::Endpoint
     Properties:
-      ScheduleExpression: cron(0 0 * * ? *)
-      Targets:
-        - Arn: !GetAtt TriggerEcsEndpointFunction.Arn
-          Id: "TriggerEcsEndpointFunction"
-
-  # Permission for EventBridge to invoke Lambda
-  LambdaInvokePermission:
-    Type: AWS::Lambda::Permission
-    DependsOn: DailyEventRule
-    Properties:
-      FunctionName: !Ref TriggerEcsEndpointFunction
-      Action: lambda:InvokeFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt DailyEventRule.Arn
+      EndpointName: !Sub "${AWS::StackName}-endpoint"
+      EndpointConfigName: !Ref CoachingOptimiserEndpointConfig
