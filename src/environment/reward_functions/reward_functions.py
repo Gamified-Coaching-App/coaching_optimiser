@@ -35,7 +35,7 @@ def get_hard_penalty(states, actions):
 
     condition = avg_actions_km_total > 2 * avg_states_km_total
 
-    penalties = tf.where(condition, 
+    penalties = tf.where(condition,
                          tf.fill(dims=tf.shape(condition), value=float(HARD_PENALTY)),  
                          tf.fill(dims=tf.shape(condition), value=-0.1))
     

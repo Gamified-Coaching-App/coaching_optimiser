@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import tensorflow as tf
+import os
+import json
 
 
 class RunningDataset:
@@ -94,11 +96,29 @@ class RunningDataset:
         elif method == 'athlete-history':
             long = self.long_form(dataset)
             long = self.z_score_normalization(long)
+            self.save_min_max_values(long)
             long = self.min_max_normalization(long)
             wide = self.wide_form(long, days)
             return wide
         else:
             raise ValueError("Invalid normalization method")
+
+    def save_min_max_values(self, df):
+        df = df.drop(columns=self.fixed_columns)
+        export_path = '../model'
+        min_max_dict = {
+        col: {
+            'min': df[col].min().item(),  # Convert to native Python type
+            'max': df[col].max().item()   # Convert to native Python type
+        }
+        for col in df.columns
+        }
+        os.makedirs(export_path, exist_ok=True)
+        json_path = os.path.join(export_path, 'min_max_values.json')
+        with open(json_path, 'w') as f:
+            json.dump(min_max_dict, f)
+        
+        print(f"Min and max values saved to {json_path}")
     
     def stack(self, df, days):
         df = self.reorder_columns(df, days)

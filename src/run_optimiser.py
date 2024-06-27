@@ -7,7 +7,7 @@ def train_optimiser():
     X_train = preprocessor.preprocess()
     env = Environment(X_train)
     bandit = ContextualBandit(state_shape=(21,10), action_shape=(7,7), env=env)
-    epochs = 50
+    epochs = 2
     batch_size = 1000
 
     for epoch in range(epochs):
@@ -15,6 +15,8 @@ def train_optimiser():
             state_batch = env.get_states(slice(index, index +batch_size))
             reward = bandit.train(state_batch)
             print(f"Epoch {epoch + 1}, Batch starting at {index + 1}, Average reward: {reward}")
+    
+    bandit.model.export('../model/optimiser')
 
 if __name__ == "__main__":
     train_optimiser()
