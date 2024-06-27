@@ -27,10 +27,10 @@ Resources:
       ModelName: !Sub "${AWS::StackName}-model"
       PrimaryContainer:
         Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
-        ModelDataUrl: !Sub "s3://${S3Bucket}/optimizer/latest/optimizer"
+        ModelDataUrl: !Sub "s3://${S3Bucket}/optimiser/latest/optimiser"
         Environment:
           SAGEMAKER_PROGRAM: inference.py
-          SAGEMAKER_SUBMIT_DIRECTORY: !Sub "s3://${S3Bucket}/optimizer/latest"
+          SAGEMAKER_SUBMIT_DIRECTORY: !Sub "s3://${S3Bucket}/optimiser/latest"
   
   CoachingOptimiserEndpointConfig:
     Type: AWS::SageMaker::EndpointConfig

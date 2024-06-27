@@ -22,11 +22,11 @@ jobs:
 
       - name: Upload model to S3
         run: |
-          aws s3 cp --recursive ./model s3://blazemodelregistry/optimizer/latest/optimizer/
+          aws s3 cp --recursive ./model s3://blazemodelsregistry/optimiser/latest/optimiser/
 
       - name: Upload inference script to S3
         run: |
-          aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelregistry/optimizer/latest/
+          aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelsregistry/optimiser/latest/
 
   deploy_sagemaker:
     needs: upload_model_to_s3
@@ -49,4 +49,4 @@ jobs:
             --template-file infrastructure/template.yaml \
             --stack-name CoachingOptimiserDeploymentStack \
             --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides S3Bucket=blazemodelregistry S3ModelDataKey=optimizer/latest
+            --parameter-overrides S3Bucket=blazemodelsregistry S3ModelDataKey=optimiser/latest
