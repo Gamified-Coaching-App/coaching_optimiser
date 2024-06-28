@@ -16,7 +16,7 @@ def train_optimiser():
             reward = bandit.train(state_batch)
             print(f"Epoch {epoch + 1}, Batch starting at {index + 1}, Average reward: {reward}")
     
-    bandit.model.export('../model/optimiser')
+    bandit.model.export('../model/optimiser/1')
 
 if __name__ == "__main__":
     train_optimiser()
