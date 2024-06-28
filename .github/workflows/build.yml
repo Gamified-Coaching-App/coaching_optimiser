@@ -37,13 +37,9 @@ jobs:
       - name: Upload inference script to S3
         run: |
           aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelsregistry/optimiser/latest/
-
-      - name: List contents of S3 directory
-        run: |
-          aws s3 ls s3://blazemodelsregistry/optimiser/latest/ --recursive
     
-          - name: Set ECR Repository Policy
-          run: |
+      - name: Set ECR Repository Policy
+        run: |
             aws ecr set-repository-policy \
               --repository-name tensorflow-inference \
               --policy-text '{
