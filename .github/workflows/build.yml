@@ -38,28 +38,44 @@ jobs:
         run: |
           aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelsregistry/optimiser/latest/
     
-      - name: Set ECR Repository Policy
-        run: |
+          - name: Set ECR Repository Policy
+          run: |
             aws ecr set-repository-policy \
               --repository-name tensorflow-inference \
-              --policy-text '{
-                "Version": "2012-10-17",
-                "Statement": [
-                  {
-                    "Sid": "AllowSageMakerPull",
-                    "Effect": "Allow",
-                    "Principal": {
-                      "Service": "sagemaker.amazonaws.com"
-                    },
-                    "Action": [
-                      "ecr:GetDownloadUrlForLayer",
-                      "ecr:BatchGetImage",
-                      "ecr:BatchCheckLayerAvailability"
-                    ],
-                    "Resource": "arn:aws:ecr:eu-west-2:763104351884:repository/tensorflow-inference"
-                  }
-                ]
-              }'
+              --policy-text file://ecr-policy.json
+          env:
+            AWS_DEFAULT_REGION: eu-west-2
+            AWS_REGION: eu-west-2
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  
+      - name: Create ECR Policy JSON
+        run: |
+            cat <<EOF > ecr-policy.json
+            {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "AllowSageMakerPull",
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": "sagemaker.amazonaws.com"
+                  },
+                  "Action": [
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability"
+                  ],
+                  "Resource": "arn:aws:ecr:eu-west-2:763104351884:repository/tensorflow-inference"
+                }
+              ]
+            }
+            EOF
+        env:
+            AWS_DEFAULT_REGION: eu-west-2
+            AWS_REGION: eu-west-2
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   deploy_sagemaker:
     needs: upload_model_to_s3
