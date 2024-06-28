@@ -48,7 +48,7 @@ Resources:
       ExecutionRoleArn: !GetAtt CoachingOptimiserSageMakerExecutionRole.Arn
       ModelName: "CoachingOptimiser"
       PrimaryContainer:
-        Image: 763104351884.dkr.ecr.eu-west-2.amazonaws.com/tensorflow-inference:2.4-cpu
+        Image: 205493899709.dkr.ecr.eu-west-2.amazonaws.com/sagemaker-inference-tensorflow:2.4-cpu-py3
         ModelDataUrl: !Sub "s3://${S3Bucket}/${S3ModelDataKey}/model/model.tar.gz"
         Environment:
           SAGEMAKER_PROGRAM: inference.py
