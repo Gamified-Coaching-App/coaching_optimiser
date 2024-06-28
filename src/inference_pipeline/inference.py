@@ -8,10 +8,14 @@ import sys
 # Define global variables to hold the min-max scaling parameters
 
 def handler(event, context):
+    print("Handler function called...")
+    sys.stdout.flush()
     global model
     # Load the model from the default SageMaker model directory
     if model is None:
         model_dir = '/opt/ml/model'
+        print("Model not loaded - load model first...")
+        sys.stdout.flush()
         model = tf.saved_model.load(model_dir)
 
     # Print a message to indicate the function is called
