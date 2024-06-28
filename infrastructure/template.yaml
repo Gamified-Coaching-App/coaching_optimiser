@@ -40,6 +40,17 @@ Resources:
                   - ecr:BatchGetImage
                   - ecr:BatchCheckLayerAvailability
                 Resource: "*"
+        - PolicyName: CloudWatchLogsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: 
+                  - "arn:aws:logs:*:*:*"
 
   CoachingOptimiserModel:
     Type: AWS::SageMaker::Model
