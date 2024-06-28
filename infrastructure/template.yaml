@@ -36,11 +36,10 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ecr-public:GetDownloadUrlForLayer
-                  - ecr-public:BatchGetImage
-                  - ecr-public:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
                 Resource: "*"
-
 
   CoachingOptimiserModel:
     Type: AWS::SageMaker::Model
