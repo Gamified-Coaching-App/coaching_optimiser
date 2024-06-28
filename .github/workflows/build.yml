@@ -39,7 +39,8 @@ jobs:
 
       - name: Create ECR Policy JSON
         run: |
-          echo '{
+          cat <<EOF > ecr-policy.json
+          {
             "Version": "2012-10-17",
             "Statement": [
               {
@@ -56,7 +57,8 @@ jobs:
                 "Resource": "arn:aws:ecr:eu-west-2:763104351884:repository/tensorflow-inference"
               }
             ]
-          }' > ecr-policy.json
+          }
+          EOF
 
       - name: Set ECR Repository Policy
         run: |
@@ -68,6 +70,8 @@ jobs:
           AWS_REGION: eu-west-2
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  
+
   
   deploy_sagemaker:
     needs: upload_model_to_s3
