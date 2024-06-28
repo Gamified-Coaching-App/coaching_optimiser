@@ -22,7 +22,7 @@ jobs:
 
       - name: Ensure assets directory exists and create placeholder if empty
         run: |
-          mkdir -p ./model/optimiser/assets
+          mkdir -p ./model/optimiser/1/assets
           [ -z "$(ls -A ./model/optimiser/1/assets)" ] && touch ./model/optimiser/1/assets/.keep
 
       - name: Package model artifacts
