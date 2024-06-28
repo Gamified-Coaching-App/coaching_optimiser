@@ -41,6 +41,29 @@ jobs:
       - name: List contents of S3 directory
         run: |
           aws s3 ls s3://blazemodelsregistry/optimiser/latest/ --recursive
+    
+          - name: Set ECR Repository Policy
+          run: |
+            aws ecr set-repository-policy \
+              --repository-name tensorflow-inference \
+              --policy-text '{
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Sid": "AllowSageMakerPull",
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": "sagemaker.amazonaws.com"
+                    },
+                    "Action": [
+                      "ecr:GetDownloadUrlForLayer",
+                      "ecr:BatchGetImage",
+                      "ecr:BatchCheckLayerAvailability"
+                    ],
+                    "Resource": "arn:aws:ecr:eu-west-2:763104351884:repository/tensorflow-inference"
+                  }
+                ]
+              }'
 
   deploy_sagemaker:
     needs: upload_model_to_s3
