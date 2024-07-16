@@ -72,4 +72,4 @@ jobs:
 
       - name: Upload min_max_values.json to S3
         run: |
-            aws s3 cp ./model/min_max_values.json s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model/min_max_values.json
+            aws s3 cp ./model/min_max_values.json s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/min_max_values.json
