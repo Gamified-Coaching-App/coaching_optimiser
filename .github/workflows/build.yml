@@ -22,40 +22,54 @@ jobs:
 
       - name: Ensure assets directory exists and create placeholder if empty
         run: |
-          mkdir -p ./model/optimiser/1/assets
-          [ -z "$(ls -A ./model/optimiser/1/assets)" ] && touch ./model/optimiser/1/assets/.keep
+          mkdir -p ./model/optimiser/assets
+          [ -z "$(ls -A ./model/optimiser/assets)" ] && touch ./model/optimiser/assets/.keep
 
       - name: Package model artifacts
         run: |
-          tar -czvf model.tar.gz -C ./model/optimiser .
+          tar -czvf model.tar.gz -C ./model/export .
 
-      - name: Upload model tarball to S3
+      - name: Install Python and boto3
         run: |
-          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/latest/model/model.tar.gz
+          sudo apt-get install python3-pip -y
+          pip3 install boto3
 
-      - name: Upload inference script to S3
+      - name: Get highest version folder and increment
+        id: get_version
         run: |
-          aws s3 cp ./src/inference_pipeline/inference.py s3://blazemodelsregistry/optimiser/latest/
-  
-  deploy_sagemaker:
-    needs: upload_model_to_s3
-    runs-on: ubuntu-latest
+          cat << EOF > get_highest_version.py
+          import boto3
+          import re
+          import sys
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+          s3 = boto3.client('s3')
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-2
+          def get_highest_version_folder(bucket_name, model_folder):
+              response = s3.list_objects_v2(Bucket=bucket_name, Prefix=model_folder)
+              version_numbers = []
+              if 'Contents' in response:
+                  for obj in response['Contents']:
+                      folder_name = obj['Key'].split('/')[-2]
+                      match = re.match(r'(\d+)', folder_name)
+                      if match:
+                          version_numbers.append(int(match.group(1)))
+              if version_numbers:
+                  return max(version_numbers)
+              else:
+                  return 0
 
-      - name: Deploy CloudFormation Stack
+          bucket_name = 'blazemodelsregistry'
+          model_folder = 'optimiser/'
+          highest_version = get_highest_version_folder(bucket_name, model_folder)
+          new_version = highest_version + 1
+          print(f'::set-output name=version::{new_version}')
+          EOF
+          python3 get_highest_version.py
+
+      - name: Upload model artifacts to S3
         run: |
-          aws cloudformation deploy \
-            --template-file infrastructure/template.yaml \
-            --stack-name CoachingOptimiserDeploymentStack \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides S3Bucket=blazemodelsregistry S3ModelDataKey=optimiser/latest
+          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model/model.tar.gz
+
+      - name: Upload min_max_values.json to S3
+        run: |
+            aws s3 cp ./model/min_max_values.json s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model/min_max_values.json

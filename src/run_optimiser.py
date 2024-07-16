@@ -17,13 +17,12 @@ def train_optimiser():
             reward = bandit.train(state_batch)
             print(f"Epoch {epoch + 1}, Batch starting at {index + 1}, Average reward: {reward}")
     
-    bandit.model.export('../model/export/Servo/1')
-    model_dir = '../model/export/Servo/1'
-    model = tf.saved_model.load(model_dir)
-
-    # Print all operations in the model
-    print("Listing all operations in the model:")
-    print(model.signatures)
+    bandit.model.export('../model/export')
 
 if __name__ == "__main__":
     train_optimiser()
+    model = tf.saved_model.load('../model/export')
+    predict = model.signatures['serving_default']
+    sample_data = tf.ones((1, 21, 10), dtype=tf.float32)
+    predictions = predict(sample_data)['output_0'].numpy()
+    print(predictions)
