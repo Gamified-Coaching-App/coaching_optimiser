@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload model artifacts to S3
         run: |
-          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model/model.tar.gz
+          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model.tar.gz
 
       - name: Upload min_max_values.json to S3
         run: |
