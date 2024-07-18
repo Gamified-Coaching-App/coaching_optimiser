@@ -6,7 +6,7 @@ on:
       - main
 env:
   IMAGE_TAG: ghcr.io/gamified-coaching-app/coaching_optimiser:v1.0
-  IMAGE_TAGE_NAME: CoachingOptimiserDockerImageTag
+  IMAGE_TAG_NAME: CoachingOptimiserDockerImageTag
   CLUSTER_NAME: CoachingOptimiserCluster
   STACK_NAME: CoachingOptimiserStack
 
@@ -124,7 +124,7 @@ jobs:
           --template-file infrastructure/template.yaml \
           --stack-name ${{ env.STACK_NAME }} \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides ${{ env.IMAGE_TAGE_NAME }}=${{ env.IMAGE_TAG }} \
+          --parameter-overrides ParameterKey=${{ env.IMAGE_TAG_NAME }},ParameterValue=${{ env.IMAGE_TAG }} \
           --no-fail-on-empty-changeset \
           --region eu-west-2 \
           --debug
