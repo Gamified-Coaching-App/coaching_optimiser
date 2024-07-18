@@ -25,4 +25,5 @@ if __name__ == "__main__":
     predict = model.signatures['serving_default']
     sample_data = tf.ones((1, 21, 10), dtype=tf.float32)
     predictions = predict(sample_data)['output_0'].numpy()
+    print("shape of predictions", predictions.shape)
     print(predictions)
