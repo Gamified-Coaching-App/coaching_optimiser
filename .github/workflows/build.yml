@@ -120,11 +120,13 @@ jobs:
     - name: Deploy CloudFormation Stack
       run: |
         set -e
+        echo "Image Tag Name: ${{ env.IMAGE_TAG_NAME }}"
+        echo "Image Tag: ${{ env.IMAGE_TAG }}"
         aws cloudformation deploy \
           --template-file infrastructure/template.yaml \
           --stack-name ${{ env.STACK_NAME }} \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides ParameterKey=CoachingOptimiserDockerImageTag,ParameterValue=ghcr.io/gamified-coaching-app/coaching_optimiser:v1.0 \
+          --parameter-overrides ParameterKey=${{env.IMAGE_TAG_NAME}},ParameterValue=${{env.IMAGE_TAG}} \
           --no-fail-on-empty-changeset \
           --region eu-west-2 \
           --debug
