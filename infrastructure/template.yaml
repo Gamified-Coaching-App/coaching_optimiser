@@ -1,0 +1,235 @@
+# REQUIRED: ADD 'DEFAULT' IN SECURITY-GROUP INGRESS
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to deploy Docker container in ECS using EC2 instances and VPC, with HTTP support.
+
+Parameters:
+  CoachingOptimiserLatestAmiId:
+    Description: The latest AMI ID for ECS-optimized Amazon Linux 2.
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+  
+  CoachingOptimiserDockerImageTag:
+    Description: Docker image tag to deploy
+    Type: String
+    Default: 'latest'
+
+Resources:
+  CoachingOptimiserVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+
+  CoachingOptimiserPublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CoachingOptimiserVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  CoachingOptimiserPublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref CoachingOptimiserVPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+
+  CoachingOptimiserInternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  CoachingOptimiserVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref CoachingOptimiserVPC
+      InternetGatewayId: !Ref CoachingOptimiserInternetGateway
+
+  CoachingOptimiserPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref CoachingOptimiserVPC
+
+  CoachingOptimiserPublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref CoachingOptimiserPublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref CoachingOptimiserInternetGateway
+
+  CoachingOptimiserSubnetRouteTableAssociationOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref CoachingOptimiserPublicSubnetOne
+      RouteTableId: !Ref CoachingOptimiserPublicRouteTable
+
+  CoachingOptimiserSubnetRouteTableAssociationTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref CoachingOptimiserPublicSubnetTwo
+      RouteTableId: !Ref CoachingOptimiserPublicRouteTable
+
+  CoachingOptimiserECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: CoachingOptimiserCluster
+
+  CoachingOptimiserEC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ec2.amazonaws.com]
+            Action: ['sts:AssumeRole']
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: "DynamoDBFullAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "dynamodb:*"
+                Resource: "arn:aws:dynamodb:*:*:table/*"
+       
+  CoachingOptimiserEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - Ref: CoachingOptimiserEC2InstanceRole
+
+  CoachingOptimiserECSInstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH access to ECS instances
+      VpcId: !Ref CoachingOptimiserVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  CoachingOptimiserEC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: CoachingOptimiserECSLaunchTemplate
+      LaunchTemplateData:
+        InstanceType: t2.micro
+        ImageId: !Ref CoachingOptimiserLatestAmiId
+        IamInstanceProfile:
+          Arn: !GetAtt CoachingOptimiserEC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref CoachingOptimiserECSInstanceSecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            echo ECS_CLUSTER=${CoachingOptimiserECSCluster} >> /etc/ecs/ecs.config
+            echo ECS_ENABLE_TASK_IAM_ROLE=true >> /etc/ecs/ecs.config
+            echo ECS_ENABLE_TASK_IAM_ROLE_NETWORK_HOST=true >> /etc/ecs/ecs.config
+
+  CoachingOptimiserAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: 1
+      MaxSize: 1
+      DesiredCapacity: 1
+      LaunchTemplate:
+        LaunchTemplateId: !Ref CoachingOptimiserEC2LaunchTemplate
+        Version: !GetAtt CoachingOptimiserEC2LaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref CoachingOptimiserPublicSubnetOne
+        - !Ref CoachingOptimiserPublicSubnetTwo
+
+  CoachingOptimiserLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Type: application
+      Subnets:
+        - !Ref CoachingOptimiserPublicSubnetOne
+        - !Ref CoachingOptimiserPublicSubnetTwo
+      SecurityGroups:
+        - !Ref CoachingOptimiserECSInstanceSecurityGroup
+
+  CoachingOptimiserECSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref CoachingOptimiserVPC
+      TargetType: instance
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: "/health"
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+
+  CoachingOptimiserHTTPListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - CoachingOptimiserLoadBalancer
+      - CoachingOptimiserECSTargetGroup
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref CoachingOptimiserECSTargetGroup
+      LoadBalancerArn: !Ref CoachingOptimiserLoadBalancer
+      Port: 80
+      Protocol: HTTP
+  
+  CoachingOptimiserLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: CoachingOptimiser
+
+  CoachingOptimiserTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: CoachingOptimiserLogGroup
+    Properties:
+      Family: coaching-optimiser-task
+      Cpu: 256
+      Memory: 512
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - EC2
+      ContainerDefinitions:
+        - Name: coaching-optimiser-container
+          Image: !Ref CoachingOptimiserDockerImageTag
+          Essential: true
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: CoachingOptimiser  
+              awslogs-region: eu-west-2  # Use the region where your CloudWatch Logs group is located
+              awslogs-stream-prefix: ecs  # A prefix for the log stream name
+    
+  CoachingOptimiserECSService:
+    Type: AWS::ECS::Service
+    DependsOn: CoachingOptimiserHTTPListener
+    Properties:
+      Cluster: !Ref CoachingOptimiserECSCluster
+      DesiredCount: 1
+      TaskDefinition: !Ref CoachingOptimiserTaskDefinition
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: coaching-optimiser-container
+          ContainerPort: 80
+          TargetGroupArn: !Ref CoachingOptimiserECSTargetGroup
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 100

@@ -124,7 +124,7 @@ jobs:
           --template-file infrastructure/template.yaml \
           --stack-name ${{ env.STACK_NAME }} \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides ParameterKey=${{ env.IMAGE_TAG_NAME }},ParameterValue=${{ env.IMAGE_TAG }} \
+          --parameter-overrides ParameterKey=CoachingOptimiserDockerImageTag,ParameterValue=ghcr.io/gamified-coaching-app/coaching_optimiser:v1.0 \
           --no-fail-on-empty-changeset \
           --region eu-west-2 \
           --debug
