@@ -19,7 +19,7 @@ global_vars = {
     'min_max_values': None
 }
 
-dynamo_db_client = boto3.client('dynamodb')
+dynamo_db_client = boto3.client('dynamodb', region_name='eu-west-2')
 
 # Load the model from S3 at startup
 @app.on_event("startup")
@@ -36,7 +36,6 @@ async def predict_endpoint(request: Request):
         results = global_vars['predict'](preprocessed_normalised_data)['output_0'].numpy()
         postprocessed_results = postprocess(np.array(preprocessed_input_data), results)
         formatted_results = format_output(postprocessed_results, user_ids)
-        print("CHANGE MADE NOW TO TEST 6")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return formatted_results

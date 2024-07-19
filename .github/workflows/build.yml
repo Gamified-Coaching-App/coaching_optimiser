@@ -126,7 +126,7 @@ jobs:
           --template-file infrastructure/template.yaml \
           --stack-name ${{ env.STACK_NAME }} \
           --capabilities CAPABILITY_NAMED_IAM \
-          --parameter-overrides ${{env.IMAGE_TAG_NAME}}=${{env.IMAGE_TAG}} \
+          --parameter-overrides CoachingOptimiserDockerImageTag=${{env.IMAGE_TAG}} \
           --no-fail-on-empty-changeset \
           --region eu-west-2 \
           --debug
