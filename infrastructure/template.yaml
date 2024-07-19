@@ -97,6 +97,15 @@ Resources:
               - Effect: Allow
                 Action: "dynamodb:*"
                 Resource: "arn:aws:dynamodb:*:*:table/*"
+        - PolicyName: "S3FullAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                Resource: "*"
        
   CoachingOptimiserEC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
