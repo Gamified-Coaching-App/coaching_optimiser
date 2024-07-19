@@ -39,3 +39,8 @@ async def predict_endpoint(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     return formatted_results
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "Healthy"}
