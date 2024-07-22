@@ -27,12 +27,12 @@ jobs:
 
       - name: Ensure assets directory exists and create placeholder if empty
         run: |
-          mkdir -p ./model/optimiser/assets
-          [ -z "$(ls -A ./model/optimiser/assets)" ] && touch ./model/optimiser/assets/.keep
+          mkdir -p ./model_export/optimiser/assets
+          [ -z "$(ls -A ./model_export/optimiser/assets)" ] && touch ./model_export/optimiser/assets/.keep
 
       - name: Package model artifacts
         run: |
-          tar -czvf model.tar.gz -C ./model/export .
+          tar -czvf model.tar.gz -C ./model_export/export .
 
       - name: Install Python and boto3
         run: |
@@ -77,7 +77,7 @@ jobs:
 
       - name: Upload min_max_values.json to S3
         run: |
-            aws s3 cp ./model/min_max_values.json s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/min_max_values.json
+            aws s3 cp ./model_export/min_max_values.json s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/min_max_values.json
   
   publish_docker_image:
     needs: upload_model_to_s3
