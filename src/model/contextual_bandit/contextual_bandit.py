@@ -37,14 +37,11 @@ class ContextualBandit(tf.Module):
             layers.BatchNormalization(),
             layers.LSTM(64, return_sequences=True),
             layers.BatchNormalization(),
-            layers.LSTM(7, return_sequences=True),
-            layers.TimeDistributed(layers.Dense(7))
+            layers.Flatten(), 
+            layers.Dense(self.action_shape[0] * self.action_shape[1]),  
+            layers.Reshape(self.action_shape)  
         ])
         return model
-
-    @tf.function(input_signature=[tf.TensorSpec(shape=[None, 21, 10], dtype=tf.float32)])
-    def serve(self, inputs):
-        return self.model(inputs)
 
     def get_actions(self, states, training=False):
         """

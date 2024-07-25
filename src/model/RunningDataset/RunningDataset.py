@@ -109,11 +109,17 @@ class RunningDataset:
         
         elif method == 'athlete-history':
             long = self.long_form(dataset)
+
+            # Save standardised parameters for inference to injury model
             self.save_stdv_mean_per_athlete(long)
-            standardised = self.z_score_normalization(long)
-            self.save_min_max_values(standardised, '../data/', 'standardised_min_max_values.json')
+            # Save min max for enforcing hard penalties
+            self.save_min_max_values(long, '../../../model_export/', 'min_max_values.json')
+            self.save_min_max_values(long, '../data/', 'min_max_values.json')
+
+            # Use copy, because otherwise the original dataframe will be modified
+            standardised = self.z_score_normalization(long.copy())
+            self.save_min_max_values(standardised, '../data/', 'standardised_min_max_values.json')            
             long = self.min_max_normalization(long)
-            self.save_min_max_values(standardised, '../../../model_export/', 'min_max_values.json')
             wide = self.wide_form(long, days)
             return wide
         else:

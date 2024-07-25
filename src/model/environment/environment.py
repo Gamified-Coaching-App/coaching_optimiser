@@ -7,6 +7,7 @@ import xgboost as xgb
 import pickle
 import os 
 from environment.reward_functions.reward_functions import get_progress, get_injury_score, get_hard_penalty
+import json
 
 class Environment:
     """
@@ -20,6 +21,8 @@ class Environment:
         self.subjective_parameter_forecaster = tf.saved_model.load('../../../coaching_subjective_parameter_forecast/model/subjective_parameter')
         self.predict_subjective_parameters = self.subjective_parameter_forecaster.signatures['serving_default']
         self.injury_models = self.load_injury_models()
+        with open('data/min_max_values.json', 'r') as file:
+            self.min_max_values = json.load(file)
         print("Environment initialized")
 
     def load_injury_models(self):
@@ -47,9 +50,9 @@ class Environment:
         Calculates the reward by combining outputs from progress and injury functions, and any penalties.
         To-Do: Consider making the entire reawrd function non-differentiable using tf.stop_gradient.
         """
-        progress = get_progress(states, actions)
-        injury_scores = get_injury_score(self, states, actions)
-        injury_scores = tf.stop_gradient(injury_scores)
-        hard_penalties = get_hard_penalty(states, actions)
-        rewards = -hard_penalties + progress #- injury_scores - hard_penalties 
+        #progress = get_progress(states, actions)
+        # injury_scores = get_injury_score(self, states, actions)
+        # injury_scores = tf.stop_gradient(injury_scores)
+        hard_penalties = get_hard_penalty(states, actions, self.min_max_values)
+        rewards = -hard_penalties #+ progress #- injury_scores - hard_penalties 
         return rewards

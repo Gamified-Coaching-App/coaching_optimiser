@@ -12,11 +12,11 @@ def train_optimiser():
     
     with h5py.File('./data/processed_data.h5', 'r') as hf:
         X_train = hf['X_train'][:]
-    athlete_ids = np.genfromtxt('data/athlete_ids.csv', delimiter=',', dtype=int)
     X_train = tf.convert_to_tensor(X_train, dtype=tf.float32)
+    athlete_ids = np.genfromtxt('data/athlete_ids.csv', delimiter=',', dtype=int)
     
     env = Environment(X_train)
-    bandit = ContextualBandit(state_shape=(21,10), action_shape=(7,7), env=env)
+    bandit = ContextualBandit(state_shape=(56,10), action_shape=(7,7), env=env)
     epochs = 1
     batch_size = 1000
     training_report = defaultdict(lambda: defaultdict(list))
