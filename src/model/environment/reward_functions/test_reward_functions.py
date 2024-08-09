@@ -11,7 +11,7 @@ import numpy as np
 import tensorflow as tf
 from training_data.training_data import InputData, OutputData
 import h5py
-from model.environment.reward_functions.utils.utils import get_absolute_values
+from model.environment.reward_functions.utils.utils import get_absolute_values, smooth_count
 import json
 import pandas as pd
 
@@ -136,6 +136,13 @@ def print_tensor_for_code(tensor):
         print(", ".join(f"{value:.2f}" for value in sublist), end="")
         print("],")
     print("]")
+
+
+def test_smooth_count():
+    input = tf.constant([[0.0, 0.1, 1.0], [0.0, 0.1, 0.05]], dtype=tf.float32)
+    result= smooth_count(input)
+    print("count result", result)
+    tf.debugging.assert_equal(False, True)
 
 
 # # Check if gradient flow is maintained

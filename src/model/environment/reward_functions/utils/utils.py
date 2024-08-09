@@ -126,123 +126,126 @@ def get_absolute_values(data, min_max_values, variable='total km'):
     # - alternative: hours < 0.5
 
 DAYS_FOR_OVERALL_WORKLOAD_COMPARISON = 28
+STEEPNESS_GREATER = 100.0
+EPSILON = 1e-6
+STEEPNESS_COUNT = 50.0
+
+""" Sets values to 1 if second value is GREATER than first value """
+def smooth_greater(smaller, greater):
+    return STEEPNESS_GREATER * (tf.nn.relu(greater - smaller))
+
+def smooth_equal(x, y):
+    condition1 = smooth_greater(smaller=x, greater=y + EPSILON)
+    condition2 = smooth_greater(greater=x, smaller=y - EPSILON)
+    return tf.minimum(condition1, condition2)
+
+def smooth_not_equal(x, y):
+    condition1 = smooth_greater(smaller=x, greater=y + EPSILON)
+    condition2 = smooth_greater(greater=x, smaller=y - EPSILON)
+    return tf.maximum(condition1, condition2)
+
+def smooth_and(condition1, condition2):
+    return tf.minimum(condition1, condition2)
+
+def smooth_count(tensor):
+    return STEEPNESS_COUNT * tf.nn.tanh(tensor)
 
 """ Average km per day shall be no more than 2x compared to the last 28 days"""
-def test_running_load_increase(states_total_km, actions_total_km, actions_km_Z3_4, states_km_Z3_4, actions_km_Z5_T1_T2, states_km_Z5_T1_T2, actions_km_sprinting, states_km_sprinting):
+def test_overall_load(states_total_km, actions_total_km, actions_km_Z3_4, states_km_Z3_4, actions_km_Z5_T1_T2, states_km_Z5_T1_T2, actions_km_sprinting, states_km_sprinting, states_hours_alternative, actions_hours_alternative, states_strength_training, actions_strength_training):
+    # RUNNING LOAD
     avg_states_km_total = tf.reduce_mean(states_total_km[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
     avg_actions_km_total = tf.reduce_mean(actions_total_km, axis=1)
+    total_actions_km_total = tf.reduce_sum(actions_total_km, axis=1)
+    # avg_states_km_Z3_4 = tf.reduce_mean(states_km_Z3_4[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
+    # avg_actions_km_Z3_4 = tf.reduce_mean(actions_km_Z3_4, axis=1)
+    # avg_states_km_Z5_T1_T2 = tf.reduce_mean(states_km_Z5_T1_T2[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
+    # avg_actions_km_Z5_T1_T2 = tf.reduce_mean(actions_km_Z5_T1_T2, axis=1)
+    # avg_states_km_sprinting = tf.reduce_mean(states_km_sprinting[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
+    # avg_actions_km_sprinting = tf.reduce_mean(actions_km_sprinting, axis=1)
 
-    avg_states_km_Z3_4 = tf.reduce_mean(states_km_Z3_4[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    avg_actions_km_Z3_4 = tf.reduce_mean(actions_km_Z3_4, axis=1)
+    condition_upper_treshold1 = smooth_greater(greater=avg_actions_km_total, smaller=avg_states_km_total * 1.5)
+    condition_upper_treshold2 = smooth_greater(greater=total_actions_km_total, smaller=3.0)
+    condition_upper_treshold = smooth_and(condition_upper_treshold1,  condition_upper_treshold2)
+    condition_running = condition_upper_treshold
+    # condition_Z3_4 = smooth_greater(greater=avg_actions_km_Z3_4, smaller=avg_states_km_Z3_4 * 1.5)
+    # condition_Z5_T1_T2 = smooth_greater(greater=avg_actions_km_Z5_T1_T2, smaller=avg_states_km_Z5_T1_T2 * 1.5)
+    # condition_sprinting = smooth_greater(greater=avg_actions_km_sprinting, smaller=avg_states_km_sprinting * 1.5)
+    #condition_running = condition_total #+ condition_Z3_4 + condition_Z5_T1_T2 + condition_sprinting
 
-    avg_states_km_Z5_T1_T2 = tf.reduce_mean(states_km_Z5_T1_T2[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    avg_actions_km_Z5_T1_T2 = tf.reduce_mean(actions_km_Z5_T1_T2, axis=1)
+    # ALTERNATIVE LOAD
+    # avg_states_alternative = tf.reduce_mean(states_hours_alternative[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
+    # avg_actions_alternative = tf.reduce_mean(actions_hours_alternative, axis=1) 
+    # condition_alt = smooth_greater(greater=avg_actions_alternative, smaller=1.2 * avg_states_alternative)
 
-    avg_states_km_sprinting = tf.reduce_mean(states_km_sprinting[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    avg_actions_km_sprinting = tf.reduce_mean(actions_km_sprinting, axis=1)
+    # STRENGTH TRAINING LOAD
+    # strength_total = tf.reduce_sum(actions_strength_training, axis=1)
+    # condition_strength = smooth_greater(smaller=4.0, greater=strength_total)
 
-    condition_total = tf.cast(avg_actions_km_total > 5 * avg_states_km_total, tf.float32)
-    condition_Z3_4 = tf.cast(avg_actions_km_Z3_4 > 5 * avg_states_km_Z3_4, tf.float32)
-    condition_Z5_T1_T2 = tf.cast(avg_actions_km_Z5_T1_T2 > 5 * avg_states_km_Z5_T1_T2, tf.float32)
-    condition_sprinting = tf.cast(avg_actions_km_sprinting > 5 * avg_states_km_sprinting, tf.float32)
-    result = condition_total + condition_Z3_4 + condition_Z5_T1_T2 + condition_sprinting
-    return result
+    return condition_running #+ condition_alt + condition_strength
 
-""" Number of running rest days (zero km) shall be no more than 3x and no less than 0.25x compared to the last 28 days """
-def test_zero_km_days(states_total_km, actions_total_km):
-    zero_days_states = tf.reduce_mean(tf.cast(states_total_km[ : , -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON : ] == 0, tf.float32), axis=1)
-    zero_days_actions = tf.reduce_mean(tf.cast(actions_total_km == 0, tf.float32), axis=1)
-    condition = (zero_days_actions > 3 * zero_days_states) | (zero_days_actions < 0.25 * zero_days_states)
-    return tf.cast(condition, tf.float32)
+""" DONE: On running days, Z3-4 km shall be no more than 40%, Z5 no more than 30% and sprint km no more than 10% of total km"""
+def test_running_zone_distribution(actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_total_km):
+    Z34_upper_threshold_condition = smooth_greater(smaller=0.4 * actions_total_km, greater=actions_km_Z3_4)
+    Z5_upper_threshold_condition = smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.3 * actions_total_km)
+    sprint_upper_threshold_condition = smooth_greater(greater=actions_km_sprinting, smaller=0.1 * actions_total_km)
+    return tf.reduce_sum(Z34_upper_threshold_condition + Z5_upper_threshold_condition + sprint_upper_threshold_condition, axis=1)
 
-""" Number of strength training days shall be no more than 2x and no less then 0.2x compared to the past 28 days """
-def test_number_strength_training_days(states_strength_training, actions_strength_training):
-    avg_states_strength_training = tf.reduce_mean(tf.cast(states_strength_training[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:] != 0, tf.float32), axis=1)
-    avg_actions_strength_training = tf.reduce_mean(tf.cast(actions_strength_training != 0, tf.float32), axis=1)
-    condition = (avg_actions_strength_training > 2 * avg_states_strength_training) | (avg_actions_strength_training < 0.2 * avg_states_strength_training)
-    return tf.cast(condition, tf.float32)
+""" DONE: Weeks with no runs, no strength or no alternative sessions shall be penalized """
+def test_emtpy_weeks(actions_total_km, actions_hours_alternative, actions_strength_training):
+    total_running_km = tf.reduce_sum(actions_total_km, axis=1)
+    # zero_strength_days = tf.reduce_sum(actions_strength_training, axis=1)
+    # zero_alternative_days = tf.reduce_sum(actions_hours_alternative, axis=1)
+    condition1 = smooth_greater(greater=2.0, smaller=total_running_km)
+    # condition2 = smooth_greater(greater=EPSILON, smaller=zero_strength_days)
+    # condition3 = smooth_greater(greater=EPSILON, smaller=zero_alternative_days)
+    return (condition1)#+ condition2 + condition3) * 1000
 
-""" Number of strength sessions per day shall be at max 1 """
-def test_number_strength_training_sessions(actions_strength_training, states_strength_training):
-    # condition = actions_strength_training > 1
-    # penalties = tf.where(condition, tf.ones_like(actions_strength_training), tf.zeros_like(actions_strength_training))
-    # return tf.reduce_sum(penalties, axis=1)
-    avg_actions_km_total = tf.reduce_mean(actions_strength_training, axis=1)
-    avg_states_km_total = tf.reduce_mean(states_strength_training, axis=1)
-
-    condition = avg_actions_km_total > 2 * avg_states_km_total
-
-    penalties = tf.where(condition,
-                         tf.fill(dims=tf.shape(condition), value=float(1)),  
-                         tf.fill(dims=tf.shape(condition), value=0.0))
-    return penalties
-
-""" Number of alternative sessions (hours alternative > 0) shall be no more than 2x and no less than 0.2x compared to the past 28 days """
-def test_number_alternative_sessions(states_hours_alternative, actions_hours_alternative):
-    avg_states_alternative = tf.reduce_mean(tf.cast(states_hours_alternative[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:] != 0, tf.float32), axis=1)
-    avg_actions_alternative = tf.reduce_mean(tf.cast(actions_hours_alternative != 0, tf.float32), axis=1) 
-    condition = (avg_actions_alternative > 2 *  avg_states_alternative) | (avg_actions_alternative < 0.1 * avg_states_alternative)
-    return tf.cast(condition, tf.float32)
-
-""" Total alternative session volumne shall be no more than 2x and no less than 0.2x compared to the past 28 days """
-def test_total_alternative_session_volume(states_hours_alternative, actions_hours_alternative):
-    avg_states_alternative = tf.reduce_mean(states_hours_alternative[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    avg_actions_alternative = tf.reduce_mean(actions_hours_alternative, axis=1) 
-    condition = (avg_actions_alternative > 2 *  avg_states_alternative) | (avg_actions_alternative < 0.2 * avg_states_alternative)
-    return tf.cast(condition, tf.float32)
-
-""" On running days, Z3-4 km shall be between 10-40% of total km """
-def test_z3_4_km_distribution(actions_km_Z3_4, actions_total_km):
-    non_zero_km_condition = actions_total_km != 0
-    below_threshold_condition = actions_km_Z3_4 < 0.1 * actions_total_km
-    above_threshold_condition = actions_km_Z3_4 > 0.4 * actions_total_km
-    condition = non_zero_km_condition & (below_threshold_condition | above_threshold_condition)
-    # Sum to get the number of days that do not meet the condition
-    return tf.reduce_sum(tf.cast(condition, tf.float32), axis=1)
-
-""" On running days, Z5 km shall no more than 30% of total km """
-def test_z5_t1_t2_km_distribution(actions_km_Z5_T1_T2, actions_total_km):
-    non_zero_km_condition = actions_total_km != 0
-    above_threshold_condition = actions_km_Z5_T1_T2 > 0.3 * actions_total_km
-    condition = non_zero_km_condition & above_threshold_condition
-    # Sum to get the number of days that do not meet the condition
-    return tf.reduce_sum(tf.cast(condition, tf.float32), axis=1)
-
-""" On running days, sprint km shall no more than 10% of total km """
-def test_sprinting_km_distribution(actions_km_sprinting, actions_total_km):
-    non_zero_km_condition = actions_total_km != 0
-    above_threshold_condition = actions_km_sprinting > 0.1 * actions_total_km
-    condition = non_zero_km_condition & above_threshold_condition
-    # Sum to get the number of days that do not meet the condition
-    return tf.reduce_sum(tf.cast(condition, tf.float32), axis=1)
-
-""" Weeks with no runs, no strength or no alternative sessions shall be penalized """
-def test_full_zero_weeks(actions_total_km, actions_hours_alternative, actions_strength_training):
-    zero_running_days = tf.reduce_sum(tf.cast(actions_total_km == 0, tf.float32), axis=1)
-    zero_strength_days = tf.reduce_sum(tf.cast(actions_strength_training == 0, tf.float32), axis=1)
-    zero_alternative_days = tf.reduce_sum(tf.cast(actions_hours_alternative == 0, tf.float32), axis=1)
-    condition = (zero_running_days >= 7) | (zero_strength_days >= 7) | (zero_alternative_days >= 7)
-    return tf.cast(condition, tf.float32) * 100
-
-""" Logical errors in the suggestions shall be penalized:
+""" DONE: Logical errors in the suggestions shall be penalized:
     - total number of sessions does not equal running sessions (total km > 0) + strength training + alternative sessions
     - total km = 0 but Z3-4, Z5-T1-T2 or sprinting > 0
-    - total km > 0 and Z1-2 km < 1.5 km: No warmup possible
  """
 def test_logical_errors(actions_nr_sessions, actions_total_km, actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_strength_training, actions_hours_alternative):
-    running_sessions = tf.cast(actions_total_km > 0, tf.float32)
-    strength_sessions = actions_strength_training
-    alternative_sessions = tf.cast(actions_hours_alternative > 0, tf.float32)
-    condition1 = tf.cast(running_sessions + strength_sessions + alternative_sessions != actions_nr_sessions, tf.float32)
-    condition2 = tf.cast(tf.logical_and(actions_total_km == 0, (actions_km_Z3_4 > 0) | (actions_km_Z5_T1_T2 > 0) | (actions_km_sprinting > 0)), tf.float32)
-    condition3 = tf.cast(tf.logical_and(actions_total_km > 0, (actions_total_km - actions_km_sprinting - actions_km_Z3_4 - actions_km_Z5_T1_T2) < 1.5), tf.float32)
-    result = tf.reduce_sum(condition1 + condition2 + condition3, axis=1)
-    return result
-
-""" Small training days shall be penalized, as no workouts can be constructed out of them """
-def test_too_small_training_days(actions_total_km, actions_hours_alternative):
-    condition1 = tf.cast(actions_total_km < 2, tf.float32)
-    condition2 = tf.cast(actions_hours_alternative < 0.5, tf.float32)
+    running_sessions = smooth_count(actions_total_km)
+    strength_sessions = smooth_count(actions_strength_training)
+    alternative_sessions = smooth_count(actions_hours_alternative)
+    condition1 = smooth_not_equal(running_sessions + strength_sessions + alternative_sessions, actions_nr_sessions)
+    condition2 = smooth_and(smooth_equal(actions_total_km, 0.0), smooth_greater(greater=actions_km_Z3_4, smaller=0.0) + smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.0) + smooth_greater(greater=actions_km_sprinting, smaller=0.0))
     result = tf.reduce_sum(condition1 + condition2, axis=1)
     return result
 
+""" DONE: Small training days shall be penalized, as no workouts can be constructed out of them """
+def test_absolute_bounds(actions_total_km, actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_hours_alternative, actions_strength_training):
+    # Total km either 0 or > 2 km
+    condition1_total_km = smooth_greater(smaller=actions_total_km, greater=2.0)
+    condition2_total_km = smooth_greater(smaller=0.01, greater=actions_total_km)
+    condition_total_km = smooth_and(condition1_total_km, condition2_total_km)
+    
+    # Z3-4 km either 0 or > 0.5 km
+    condition1_km_Z34 = smooth_greater(smaller=actions_km_Z3_4, greater=0.5)
+    condition2_km_Z34 = smooth_greater(smaller=0.0, greater=actions_km_Z3_4)
+    condition_Z34 = smooth_and(condition1_km_Z34, condition2_km_Z34)
+    
+    # Z5-T1-T2 km either 0 or > 0.5 km
+    condition1_km_Z5T1T2 = smooth_greater(smaller=actions_km_Z5_T1_T2, greater=0.5)
+    condition2_km_Z5T1T2 = smooth_greater(smaller=0.0, greater=actions_km_Z5_T1_T2)
+    condition_Z5T1T2 = smooth_and(condition1_km_Z5T1T2, condition2_km_Z5T1T2)
+    
+    # Sprinting km either 0 or > 0.25 km
+    condition1_km_sprinting = smooth_greater(smaller=actions_km_sprinting, greater=0.25)
+    condition2_km_sprinting = smooth_greater(smaller=0.0, greater=actions_km_sprinting)
+    condition_sprinting = smooth_and(condition1_km_sprinting, condition2_km_sprinting)
+    
+    # Alternative hours either 0 or > 0.5 hours
+    condition1_alternative = smooth_greater(smaller=actions_hours_alternative, greater=0.5)
+    condition2_alternative = smooth_greater(smaller=0.0, greater=actions_hours_alternative)
+    condition_alternative = smooth_and(condition1_alternative, condition2_alternative)
+    
+    # CHECK THIS CONDITION AGAIN Strength training 0-1
+    condition1_strength_training = smooth_greater(greater=actions_strength_training, smaller=1.0)
+    condition2_strength_training = smooth_greater(greater=0.0, smaller=actions_strength_training)
+    condition_strength_training = condition1_strength_training + condition2_strength_training
+
+    # On running days Z1-2 km shall be at least 1.5 km to enable warm up
+    condition_Z2 = smooth_and(smooth_greater(greater=actions_total_km, smaller=0.0), smooth_greater(smaller=actions_total_km - actions_km_sprinting - actions_km_Z3_4 - actions_km_Z5_T1_T2, greater=1.5))
+    
+    return tf.reduce_sum(condition_total_km, axis=1)#tf.reduce_sum(condition_total_km + condition_Z34 + condition_Z5T1T2 + condition_sprinting + condition_strength_training + condition_alternative + condition_Z2, axis=1)

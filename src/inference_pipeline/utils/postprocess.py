@@ -34,4 +34,4 @@ def take_rule_based_approach(input_data_object):
             user_result.append(last_7_days)
         result.append(np.stack(user_result, axis=-1))  # Stack results to shape (days, variables)
     
-    return np.stack(result, axis=0)  
+    return np.stack(result, axis=0)

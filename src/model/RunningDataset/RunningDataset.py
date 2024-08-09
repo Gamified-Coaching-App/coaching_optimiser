@@ -5,6 +5,7 @@ import tensorflow as tf
 import os
 import json
 import h5py
+from sklearn.model_selection import train_test_split
 
 
 class RunningDataset:
@@ -158,19 +159,30 @@ class RunningDataset:
             reshaped_data[index, :, :] = temp_row 
         return reshaped_data
 
-    def preprocess(self, days=56):
+    def preprocess(self, days=56, train_ratio=0.85):
         print("Preprocessing data...")
         normalisation_method = 'athlete-history'
         norm_min=0
-        athlete_ids = self.data['Athlete ID']
         self.data_normalised = self.normalise(self.data, method=normalisation_method, min=norm_min, days=days)
-        self.X_train = self.stack(self.data_normalised.drop(columns=self.fixed_columns), days)
+        athlete_ids = self.data_normalised['Athlete ID']
+        self.data_reshaped = self.stack(self.data_normalised.drop(columns=self.fixed_columns), days)
+
+        assert athlete_ids.shape[0] == self.data_reshaped.shape[0], "Mismatch in first dimension of athlete_ids and data_reshaped: {} vs {}".format(athlete_ids.shape[0], self.data_reshaped.shape[0])
+
+        X_train, X_test, athlete_ids_train, athlete_ids_test = train_test_split(self.data_reshaped, athlete_ids, train_size=train_ratio, random_state=12)
+        
+        # Save the datasets
         os.makedirs('../data', exist_ok=True)
         with h5py.File('../data/processed_data.h5', 'w') as hf:
-            hf.create_dataset('X_train', data=self.X_train)
-        np.savetxt('../data/athlete_ids.csv', athlete_ids, delimiter=',', fmt='%.d')
-        print("Shapes of the datasets: X_train:", self.X_train.shape)
-        print("Tradining data saved to ../data/processed_data.h5")
+            hf.create_dataset('X_train', data=X_train)
+            hf.create_dataset('X_test', data=X_test)
+        
+        np.savetxt('../data/athlete_ids_train.csv', athlete_ids_train, delimiter=',', fmt='%.d')
+        np.savetxt('../data/athlete_ids_test.csv', athlete_ids_test, delimiter=',', fmt='%.d')
+        
+        print("Shapes of the datasets: X_train:", X_train.shape, "X_test:", X_test.shape)
+        print("Training and testing data saved to ../data/processed_data.h5")
+        print("Athlete IDs saved to ../data/athlete_ids_train.csv and ../data/athlete_ids_test.csv")
 
 if __name__ == "__main__":
     dataset = RunningDataset()

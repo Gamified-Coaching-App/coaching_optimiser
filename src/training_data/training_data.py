@@ -1,25 +1,26 @@
 import numpy as np
+import tensorflow as tf
 
 class TrainingData:
     def __init__(self, data):
-        if not isinstance(data, np.ndarray):
+        if not (isinstance(data, np.ndarray) or isinstance(data, tf.Tensor)):
             raise ValueError("Data must be a NumPy array.")
         self.data = data
         self.var_index_overarching = {
-            'numberSessions': 0,
-            'kmTotal': 1,
-            'kmZ3Z4': 2,
-            'kmZ5': 3,
-            'kmSprint': 4,
-            'numberStrengthSessions': 5,
-            'hoursAlternative': 6
+            'nr. sessions': 0,
+            'total km': 1,
+            'km Z3-4': 2,
+            'km Z5-T1-T2': 3,
+            'km sprinting': 4,
+            'strength training': 5,
+            'hours alternative': 6
         }
         self.var_index_output_only = {
-            'perceivedExertion': 7,
-            'perceivedRecovery': 8,
-            'perceivedTrainingSuccess': 9
+            'perceived exertion': 7,
+            'perceived trainingSuccess': 8,
+            'perceived recovery': 9
         }
-
+   
     def __getitem__(self, key):
         if key in self.var_index_overarching:
             return self.data[:, :, self.var_index_overarching[key]]
@@ -32,8 +33,8 @@ class InputData(TrainingData):
     def __init__(self, data):
         if data.ndim != 3:
             raise ValueError("Input data must have 3 dimensions.")
-        if data.shape[1] != 21:
-            raise ValueError("The second dimension must be 21.")
+        if data.shape[1] != 56:
+            raise ValueError("The second dimension must be 56.")
         if data.shape[2] != 10:
             raise ValueError("The third dimension must be 10.")
         super().__init__(data)
