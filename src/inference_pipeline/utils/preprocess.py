@@ -77,15 +77,9 @@ def preprocess(dynamo_db_client, input_data, min_max_values):
     user_ids = [data['userId'] for data in input_data]
 
     reshaped_raw_data = reshape(input_data)
-    
-    # Get mean and std
-    mean_std_dict = get_mean_std(dynamo_db_client, user_ids)
-    
-    # Standardize data
-    standardised_data = standardise(input_data, mean_std_dict)
 
     # Normalize data
-    normalised_data = normalise(standardised_data, min_max_values)
+    normalised_data = normalise(reshaped_raw_data, min_max_values)
     
     # Reshape data
     reshaped_normalised_data = reshape(normalised_data)

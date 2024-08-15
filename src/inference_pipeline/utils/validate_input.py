@@ -19,7 +19,7 @@
 #       }, ...}
 #   }]
 
-def validate_input(input_data, days=21):
+def validate_input(input_data, days=56):
 
     required_fields = {
         "numberSessions": int,

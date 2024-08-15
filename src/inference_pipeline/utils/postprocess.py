@@ -1,15 +1,43 @@
 from training_data.training_data import InputData, OutputData
 import numpy as np
 
- # TO-DO: in Postprocessing include conversion from standardised to absolute
+def postprocess(output, min_max_values):
+    output_object = OutputData(output)   
+     
+    return convert_to_absolute_values(output_object, min_max_values)
 
-def postprocess(input, output):
-    input_object = InputData(input)
+def convert_to_absolute_values(output_object, min_max_values):
     result = []
-    if(True):
-        result = take_rule_based_approach(input_object)
+    variables = [
+       'nr. sessions',
+        'total km',
+        'km Z3-4',
+        'km Z5-T1-T2',
+        'km sprinting',
+        'strength training',
+        'hours alternative'
+    ]
     
-    return result
+    for var in variables:
+        # Assuming get_absolute_values returns an array of shape (batch, 7)
+        abs_values = get_absolute_values(output_object[var], min_max_values, var)
+        result.append(abs_values)
+    
+    # Stack the results along a new last axis to get shape (batch, 7, 7)
+    stacked_result = np.stack(result, axis=-1)
+    
+    return stacked_result
+
+def get_absolute_values(data, min_max_values, variable='total km'):
+    """
+    Extracts and returns the absolute values of the specified variable from the data for all batches,
+    Input has shape [batch_size, time_steps]
+    Output has shape [batch_size, time_steps]
+    """
+    min = min_max_values[variable]['min']
+    max = min_max_values[variable]['max']
+    absolute = data * (max - min) + min
+    return absolute
 
 def take_rule_based_approach(input_data_object):
     variables = [
