@@ -79,18 +79,8 @@ def prepare_data_injury_model(data):
         pd.DataFrame: DataFrame with shape [batch, 70], where each column is named according to the
                       variable and day it represents.
     """
-    sliced_data = data[:, -7:, :]
-    reshaped_data = tf.reshape(sliced_data, [sliced_data.shape[0], -1])
 
-    variable_list = ['nr. sessions', 'total km', 'km Z3-4', 'km Z5-T1-T2', 'km sprinting',
-                     'strength training', 'hours alternative', 'perceived exertion',
-                     'perceived trainingSuccess', 'perceived recovery']
-
-    column_names = [f"{var}.{i}" for i in range(7) for var in variable_list]
-
-    df = pd.DataFrame(reshaped_data.numpy(), columns=column_names)
-
-    return df
+    return data[:, -7:, :]
 
 def get_absolute_values(data, min_max_values, variable='total km'):
     """
@@ -126,8 +116,8 @@ def get_absolute_values(data, min_max_values, variable='total km'):
     # - alternative: hours < 0.5
 
 DAYS_FOR_OVERALL_WORKLOAD_COMPARISON = 28
-STEEPNESS_GREATER = 100.0
-EPSILON = 1e-6
+STEEPNESS_GREATER = 1.0
+EPSILON = 0.01
 STEEPNESS_COUNT = 50.0
 
 """ Sets values to 1 if second value is GREATER than first value """
@@ -151,26 +141,17 @@ def smooth_count(tensor):
     return STEEPNESS_COUNT * tf.nn.tanh(tensor)
 
 """ Average km per day shall be no more than 2x compared to the last 28 days"""
-def test_overall_load(states_total_km, actions_total_km, actions_km_Z3_4, states_km_Z3_4, actions_km_Z5_T1_T2, states_km_Z5_T1_T2, actions_km_sprinting, states_km_sprinting, states_hours_alternative, actions_hours_alternative, states_strength_training, actions_strength_training):
+def test_overall_load(states_total_km, actions_total_km, states_strength_training, actions_strength_training, states_hours_alternative, actions_hours_alternative):
     # RUNNING LOAD
     avg_states_km_total = tf.reduce_mean(states_total_km[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
     avg_actions_km_total = tf.reduce_mean(actions_total_km, axis=1)
+    running_progression = avg_actions_km_total / (avg_states_km_total + EPSILON)
     total_actions_km_total = tf.reduce_sum(actions_total_km, axis=1)
-    # avg_states_km_Z3_4 = tf.reduce_mean(states_km_Z3_4[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    # avg_actions_km_Z3_4 = tf.reduce_mean(actions_km_Z3_4, axis=1)
-    # avg_states_km_Z5_T1_T2 = tf.reduce_mean(states_km_Z5_T1_T2[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    # avg_actions_km_Z5_T1_T2 = tf.reduce_mean(actions_km_Z5_T1_T2, axis=1)
-    # avg_states_km_sprinting = tf.reduce_mean(states_km_sprinting[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    # avg_actions_km_sprinting = tf.reduce_mean(actions_km_sprinting, axis=1)
 
-    condition_upper_treshold1 = smooth_greater(greater=avg_actions_km_total, smaller=avg_states_km_total * 1.5)
-    condition_upper_treshold2 = smooth_greater(greater=total_actions_km_total, smaller=3.0)
+    condition_upper_treshold1 = smooth_greater(greater=running_progression, smaller=1.4)
+    condition_upper_treshold2 = smooth_greater(greater=avg_states_km_total, smaller=10.0/DAYS_FOR_OVERALL_WORKLOAD_COMPARISON)
     condition_upper_treshold = smooth_and(condition_upper_treshold1,  condition_upper_treshold2)
     condition_running = condition_upper_treshold
-    # condition_Z3_4 = smooth_greater(greater=avg_actions_km_Z3_4, smaller=avg_states_km_Z3_4 * 1.5)
-    # condition_Z5_T1_T2 = smooth_greater(greater=avg_actions_km_Z5_T1_T2, smaller=avg_states_km_Z5_T1_T2 * 1.5)
-    # condition_sprinting = smooth_greater(greater=avg_actions_km_sprinting, smaller=avg_states_km_sprinting * 1.5)
-    #condition_running = condition_total #+ condition_Z3_4 + condition_Z5_T1_T2 + condition_sprinting
 
     # ALTERNATIVE LOAD
     # avg_states_alternative = tf.reduce_mean(states_hours_alternative[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
@@ -181,14 +162,15 @@ def test_overall_load(states_total_km, actions_total_km, actions_km_Z3_4, states
     # strength_total = tf.reduce_sum(actions_strength_training, axis=1)
     # condition_strength = smooth_greater(smaller=4.0, greater=strength_total)
 
+
     return condition_running #+ condition_alt + condition_strength
 
 """ DONE: On running days, Z3-4 km shall be no more than 40%, Z5 no more than 30% and sprint km no more than 10% of total km"""
-def test_running_zone_distribution(actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_total_km):
-    Z34_upper_threshold_condition = smooth_greater(smaller=0.4 * actions_total_km, greater=actions_km_Z3_4)
-    Z5_upper_threshold_condition = smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.3 * actions_total_km)
-    sprint_upper_threshold_condition = smooth_greater(greater=actions_km_sprinting, smaller=0.1 * actions_total_km)
-    return tf.reduce_sum(Z34_upper_threshold_condition + Z5_upper_threshold_condition + sprint_upper_threshold_condition, axis=1)
+# def test_running_zone_distribution(actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_total_km):
+#     Z34_upper_threshold_condition = smooth_greater(smaller=0.4 * actions_total_km, greater=actions_km_Z3_4)
+#     Z5_upper_threshold_condition = smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.3 * actions_total_km)
+#     sprint_upper_threshold_condition = smooth_greater(greater=actions_km_sprinting, smaller=0.1 * actions_total_km)
+#     return tf.reduce_sum(Z34_upper_threshold_condition + Z5_upper_threshold_condition + sprint_upper_threshold_condition, axis=1)
 
 """ DONE: Weeks with no runs, no strength or no alternative sessions shall be penalized """
 def test_emtpy_weeks(actions_total_km, actions_hours_alternative, actions_strength_training):

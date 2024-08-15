@@ -27,7 +27,7 @@ class ContextualBandit(tf.Module):
             self.optimizer = optimizers.Adam(learning_rate=config['learning_rate'])
             print("Using Adam optimizer")
         else:
-            self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'])
+            self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'], rho = 0.99)
             print("Using Adadelta optimizer")
         
     def create_model(self, config):
@@ -151,14 +151,14 @@ class ContextualBandit(tf.Module):
         """
         with tf.GradientTape() as tape:
             actions = self.get_actions(states, training=True)
-            rewards = self.env.get_rewards(actions, states)
+            rewards = self.env.get_rewards(actions, states, epoch)
             loss = -tf.reduce_mean(rewards)
         gradients = tape.gradient(loss, self.model.trainable_variables)
         all_gradients_zero = all(tf.reduce_sum(tf.abs(grad)).numpy() == 0 for grad in gradients)
         if any(grad is None for grad in gradients):
             raise ValueError("At least one gradient is None.")
-        elif all_gradients_zero:
-            print("All gradients are zero. Loss is ", loss.numpy())
+        #elif all_gradients_zero:
+            #print("All gradients are zero. Loss is ", loss.numpy())
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
         return -loss, actions, rewards, all_gradients_zero
     
@@ -173,6 +173,6 @@ class ContextualBandit(tf.Module):
         - rewards: The rewards obtained from the environment based on the model's actions.
         """
         actions = self.get_actions(test_states, training=False)
-        rewards = self.env.get_rewards(actions, test_states)
+        rewards = self.env.get_rewards(actions, test_states, 1000)
         loss = -tf.reduce_mean(rewards)
         return -loss

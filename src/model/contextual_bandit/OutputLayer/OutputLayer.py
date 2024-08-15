@@ -32,7 +32,7 @@ class OutputLayer(layers.Layer):
             'km Z5-T1-T2': self.scale_absolute_value(config['lower_thresholds']['km Z5-T1-T2'], 'km Z5-T1-T2'),
             'km sprinting': self.scale_absolute_value(config['lower_thresholds']['km sprinting'], 'km sprinting'),
             'strength training': self.scale_absolute_value(config['lower_thresholds']['strength training'], 'strength training'),
-            'hours alternative': self.scale_absolute_value(config['lower_thresholds']['hours alternative'], 'hours alternative'),
+            'hours alternative': self.scale_absolute_value(config['lower_thresholds']['hours alternative'], 'hours alternative')
         }
         self.upper_thresholds_ratios = {
             'km Z3-4': self.scale_ratio(config['upper_thresholds']['ratio_of_total_km']['km Z3-4'], 'km Z3-4'),
@@ -64,17 +64,38 @@ class OutputLayer(layers.Layer):
 
     def call(self, inputs):
         immediate_input, states = inputs
+        states_indexable = InputData(states)
         
         tf.debugging.assert_equal(tf.shape(immediate_input)[1:], (7, 7), message="immediate_input shape is incorrect, got {} instead of (7,7)".format(tf.shape(immediate_input)))
         tf.debugging.assert_equal(tf.shape(states)[1:], (56, 10), message="original_input shape is incorrect, got {} instead of (56,10)".format(tf.shape(states)))
         
         output = tf.nn.relu(immediate_input)
-        output = self.enforce_upper_threshold_absolute(output, states)
-        output = self.enforce_lower_threshold(output)
-        output = self.enforce_logical_correctness(output)
-        output = tf.nn.relu(output)
+        # output = self.enforce_upper_threshold_absolute(output, states)
+        # output = self.enforce_lower_threshold(output)
+        # output = self.enforce_rest_days(output, states_indexable)
+        # output = self.enforce_logical_correctness(output)
+        # output = tf.nn.relu(output)
         
         return output
+    
+    def overwrite_output(self, actions, states_indexable):
+        states_km = states_indexable['total km']
+        mean_km = tf.reduce_mean(states_km[:, -28:], axis=1)
+        mean_km = tf.expand_dims(mean_km, axis=1)
+        mean_km = tf.tile(mean_km, [1, 7])
+        new_actions = mean_km * 1.4
+
+        actions = tf.concat(
+            [
+                actions[:, :, :self.indexes['total km']],
+                tf.expand_dims(new_actions, axis=2),
+                actions[:, :, self.indexes['total km']+1:]
+            ],
+            axis=2
+            )
+
+        return actions
+
     
     def build_lower_threshold_tensor(self, inputs):
         batch_size = tf.shape(inputs)[0]
@@ -118,7 +139,7 @@ class OutputLayer(layers.Layer):
         if var_name in ['total km', 'hours alternative']:
             # Extract the variable from states 
             var_states = states_indexable[var_name]  # shape: (batch, days)
-            max_value = tf.reduce_max(var_states, axis=1)  # shape: (batch,)
+            max_value = tf.reduce_max(var_states[:,-28:], axis=1)  # shape: (batch,)
             # Add the upper threshold historic comparison value for the variable
             max_threshold = max_value + self.upper_thresholds_historic_comparison[var_name]  # shape: (batch,)
             # Create a tensor to broadcast the max_threshold to match the output shape
@@ -153,6 +174,30 @@ class OutputLayer(layers.Layer):
         
         return actions
     
+    def enforce_rest_days(self, actions, states_indexable):
+        var_states = states_indexable['total km']
+        total_km = actions[:, :, self.indexes['total km']]
+        #Repalce zeros with inf to make sure they are not the lowest values
+        min_km_value = tf.reduce_min(tf.where(var_states[:, -28:] != 0, var_states[:, -28:], float('inf')), axis=1)
+
+        min_km_value = tf.expand_dims(min_km_value, axis=1)
+        
+        total_km = tf.where(total_km < min_km_value - self.lower_thresholds['total km'] * 0.5, tf.nn.relu(-total_km), total_km)
+
+        actions = tf.concat(
+            [
+                actions[:, :, :self.indexes['total km']],
+                tf.expand_dims(total_km, axis=2),
+                actions[:, :, self.indexes['total km']+1:]
+            ],
+            axis=2
+            )
+        
+        return actions
+
+
+
+    
     def enforce_logical_correctness(self, actions):
         tanh_steepness = 1000.0
         total_km = actions[:, :, self.indexes['total km']]
@@ -176,9 +221,9 @@ class OutputLayer(layers.Layer):
         km_z5_t1_t2 = actions[:, :, self.indexes['km Z5-T1-T2']]
         km_sprinting = actions[:, :, self.indexes['km sprinting']]
         
-        km_z3_4 = tf.where(total_km == 0, -tf.nn.relu(km_z3_4), km_z3_4)
-        km_z5_t1_t2 = tf.where(total_km == 0, -tf.nn.relu(km_z5_t1_t2), km_z5_t1_t2)
-        km_sprinting = tf.where(total_km == 0, -tf.nn.relu(km_sprinting), km_sprinting)
+        km_z3_4 = tf.where(total_km == 0, tf.nn.relu(-km_z3_4), km_z3_4)
+        km_z5_t1_t2 = tf.where(total_km == 0, tf.nn.relu(-km_z5_t1_t2), km_z5_t1_t2)
+        km_sprinting = tf.where(total_km == 0, tf.nn.relu(-km_sprinting), km_sprinting)
         
         # Update the actions tensor with the modified km values
         actions = tf.concat(

@@ -30,6 +30,7 @@ def add_to_grid_search_report(report_dict, model_config, epoch, loss):
 def train_optimiser(): 
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     configure_gpu()
+    #tf.config.set_visible_devices([], 'GPU')
     with h5py.File('./data/processed_data.h5', 'r') as hf:
         X_train = hf['X_train'][:]
         X_test = hf['X_test'][:]
@@ -39,8 +40,8 @@ def train_optimiser():
     athlete_ids_test = np.genfromtxt('data/athlete_ids_test.csv', delimiter=',', dtype=int)
     
     env = Environment(X_train)
-    epochs = 11
-    batch_size = 4243
+    epochs = 1#500
+    batch_size = 200#4243
     training_report = defaultdict(lambda: defaultdict(list))
     architecture_report = {}
 
@@ -76,8 +77,8 @@ def train_optimiser():
     with open('report.json', 'w') as report_file:
         json.dump(architecture_report, report_file, indent=1)
     
-    #bandit.model.export('../model_export/export')
-    save_report(training_report, 'report/reports_data/', timestamp)
+    bandit.model.export('../model_export/export')
+    #save_report(training_report, 'report/reports_data/', timestamp)
 
 if __name__ == "__main__":
     train_optimiser()
