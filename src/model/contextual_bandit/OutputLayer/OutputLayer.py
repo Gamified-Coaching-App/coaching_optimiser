@@ -75,7 +75,6 @@ class OutputLayer(layers.Layer):
         # output = self.enforce_rest_days(output, states_indexable)
         # output = self.enforce_logical_correctness(output)
         # output = tf.nn.relu(output)
-        
         return output
     
     def overwrite_output(self, actions, states_indexable):
@@ -194,8 +193,6 @@ class OutputLayer(layers.Layer):
             )
         
         return actions
-
-
 
     
     def enforce_logical_correctness(self, actions):

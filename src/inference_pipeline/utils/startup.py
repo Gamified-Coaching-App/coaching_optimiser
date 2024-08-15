@@ -25,6 +25,7 @@ async def load_model(global_vars):
     # Download the model.tar.gz from S3
     model_tar_path = os.path.join(local_model_path, "model.tar.gz")
     s3.download_file(s3_bucket, model_s3_key, model_tar_path)
+    print(f"Model downloaded from S3: {model_s3_key}")
 
     # Extract the model.tar.gz
     with tarfile.open(model_tar_path, "r:gz") as tar:
@@ -39,6 +40,7 @@ async def load_model(global_vars):
         global_vars['min_max_values'] = json.load(f)
 
     # Load the TensorFlow model
+    print(f"Loading model from {local_model_path}")
     model = tf.saved_model.load(local_model_path)
     global_vars['predict'] = model.signatures['serving_default']
 

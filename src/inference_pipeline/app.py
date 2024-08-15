@@ -9,6 +9,8 @@ from utils.postprocess import postprocess
 from utils.format_output import format_output
 import numpy as np
 import json
+import traceback
+import sys
 
 app = FastAPI()
 
@@ -30,11 +32,20 @@ async def predict_endpoint(request: Request):
         raise HTTPException(status_code=400, detail="Invalid input data")
     try:
         preprocessed_normalised_data, user_ids = preprocess(input, global_vars['min_max_values'])
+        print("shape of preprocessed_normalised_data", preprocessed_normalised_data.shape)
         results = global_vars['predict'](preprocessed_normalised_data)['output_0'].numpy()
+        print("results", results)
+        print("shape of results", results.shape)    
         postprocessed_results = postprocess(results, global_vars['min_max_values'])
         formatted_results = format_output(postprocessed_results, user_ids)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        exc_type, exc_obj, tb = sys.exc_info()
+        lineno = tb.tb_lineno
+        # Print the error message along with the line number
+        print(f"Error!! {str(e)} on line {lineno}")
+        
+        # Raise an HTTPException with the detailed error message
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)} on line {lineno}")
     return formatted_results
 
 # Health check endpoint

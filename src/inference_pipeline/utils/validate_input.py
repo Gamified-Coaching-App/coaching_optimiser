@@ -22,13 +22,13 @@
 def validate_input(input_data, days=56):
 
     required_fields = {
-        "numberSessions": int,
+        "numberSessions": (int, float),
         "kmTotal": (int, float),
         "kmZ3Z4": (int, float),
         "kmZ5": (int, float),
         "kmSprint": (int, float),
         "hoursAlternative": (int, float),
-        "numberStrengthSessions": int,
+        "numberStrengthSessions": (int, float),
         "perceivedTrainingSuccess": (int, float),
         "perceivedRecovery": (int, float),
         "perceivedExertion": (int, float),
@@ -36,6 +36,7 @@ def validate_input(input_data, days=56):
     }
 
     if not isinstance(input_data, list):
+        print("Input data is not a list.")
         return False
 
     for user_data in input_data:

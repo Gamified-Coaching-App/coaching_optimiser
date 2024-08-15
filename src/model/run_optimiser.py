@@ -41,7 +41,7 @@ def train_optimiser():
     
     env = Environment(X_train)
     epochs = 1#500
-    batch_size = 200#4243
+    batch_size = 4324#200#4243
     training_report = defaultdict(lambda: defaultdict(list))
     architecture_report = {}
 
@@ -79,6 +79,36 @@ def train_optimiser():
     
     bandit.model.export('../model_export/export')
     #save_report(training_report, 'report/reports_data/', timestamp)
+    model_path = '../model_export/export'  # Specify the correct path to your model
+    model = tf.saved_model.load(model_path)
+
+    # Assume the model uses the 'serving_default' signature
+    predict_fn = model.signatures['serving_default']
+
+    # Prepare input data
+    model_path = '../model_export/export'  # Adjust the path as needed
+    model = tf.saved_model.load(model_path)
+
+    # Assume the model uses the 'serving_default' signature
+    predict_fn = model.signatures['serving_default']
+
+    # Prepare input data
+    # Example: Batch of 1, shape (1, 56, 10)
+    input_data = np.ones((1, 56, 10), dtype=np.float32)
+
+    # Convert the input data to a TensorFlow tensor
+    input_tensor = tf.convert_to_tensor(input_data, dtype=tf.float32)
+
+    # Run inference on the model
+    output = predict_fn(input_tensor)
+
+    # Access the output by key (assuming 'output_0' is the key for the model output)
+    # Replace 'output_0' with the actual key name if it's different
+    output_tensor = output['output_0'].numpy()
+
+    # Print the output
+    print("Model output for input_data:", output_tensor.shape)
+
 
 if __name__ == "__main__":
     train_optimiser()

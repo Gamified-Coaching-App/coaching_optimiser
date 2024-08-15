@@ -3,6 +3,9 @@ import requests
 import json
 import numpy as np
 import tensorflow as tf
+import sys
+import traceback
+
 
 def get_mean_std(dynamo_db_client, user_ids):
     mean_std_dict = {}
@@ -55,7 +58,7 @@ def normalise(standardised_data, min_max_values):
                     day_data[key] = (value - min_val) / (max_val - min_val)
     return standardised_data
 
-def reshape(normalized_data, days=21):
+def reshape(normalized_data, days=56):
     feature_order = [
         'numberSessions', 'kmTotal', 'kmZ3Z4', 'kmZ5', 'kmSprint',
         'numberStrengthSessions', 'hoursAlternative', 'perceivedExertion',
@@ -73,15 +76,23 @@ def reshape(normalized_data, days=21):
     
     return np.array(batch_data)
 
-def preprocess(dynamo_db_client, input_data, min_max_values):
-    user_ids = [data['userId'] for data in input_data]
+def preprocess(input_data, min_max_values):
+    try:
+        user_ids = [data['userId'] for data in input_data]
 
-    reshaped_raw_data = reshape(input_data)
+        reshaped_raw_data = reshape(input_data)
 
-    # Normalize data
-    normalised_data = normalise(reshaped_raw_data, min_max_values)
-    
-    # Reshape data
-    reshaped_normalised_data = reshape(normalised_data)
+        # Normalize data
+        normalised_data = normalise(input_data, min_max_values)
+        
+        # Reshape data
+        reshaped_normalised_data = reshape(normalised_data)
 
-    return tf.convert_to_tensor(reshaped_normalised_data, dtype=tf.float32),  reshaped_raw_data, user_ids
+        return tf.convert_to_tensor(reshaped_normalised_data, dtype=tf.float32), user_ids
+    except Exception as e:
+        exc_type, exc_obj, tb = sys.exc_info()
+        lineno = tb.tb_lineno
+        filename = tb.tb_frame.f_code.co_filename  # Get the script name
+
+        # Print the error message along with the script name and line number
+        print(f"Error in preprocess function!! {str(e)} in {filename} on line {lineno}")
