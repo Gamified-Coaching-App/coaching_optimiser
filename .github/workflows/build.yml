@@ -25,15 +25,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
-      - name: Ensure assets directory exists and create placeholder if empty
-        run: |
-          mkdir -p ./model_export/optimiser/assets
-          [ -z "$(ls -A ./model_export/optimiser/assets)" ] && touch ./model_export/optimiser/assets/.keep
-
-      - name: Package model artifacts
-        run: |
-          tar -czvf model.tar.gz -C ./model_export/export .
-
       - name: Install Python and boto3
         run: |
           sudo apt-get install python3-pip -y
@@ -73,7 +64,7 @@ jobs:
 
       - name: Upload model artifacts to S3
         run: |
-          aws s3 cp model.tar.gz s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model.tar.gz
+           aws s3 cp ./model_export/export s3://blazemodelsregistry/optimiser/${{ steps.get_version.outputs.version }}/model/ --recursive
 
       - name: Upload min_max_values.json to S3
         run: |
