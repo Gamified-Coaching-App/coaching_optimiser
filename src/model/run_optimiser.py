@@ -30,7 +30,7 @@ def add_to_grid_search_report(report_dict, model_config, epoch, loss):
 def train_optimiser(): 
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     configure_gpu()
-    #tf.config.set_visible_devices([], 'GPU')
+    tf.config.set_visible_devices([], 'GPU')
     with h5py.File('./data/processed_data.h5', 'r') as hf:
         X_train = hf['X_train'][:]
         X_test = hf['X_test'][:]

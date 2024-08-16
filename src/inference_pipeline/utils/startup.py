@@ -1,6 +1,5 @@
 import os
 import boto3
-import tarfile
 import json
 import tensorflow as tf
 
@@ -19,17 +18,12 @@ async def load_model(global_vars):
     highest_version = get_highest_version_folder(s3_bucket, s3_prefix)        
 
     # Construct S3 keys for the latest version
-    model_s3_key = f"{s3_prefix}{highest_version}/model.tar.gz"
+    model_s3_prefix = f"{s3_prefix}{highest_version}/model/"
     min_max_s3_key = f"{s3_prefix}{highest_version}/min_max_values.json"
 
-    # Download the model.tar.gz from S3
-    model_tar_path = os.path.join(local_model_path, "model.tar.gz")
-    s3.download_file(s3_bucket, model_s3_key, model_tar_path)
-    print(f"Model downloaded from S3: {model_s3_key}")
-
-    # Extract the model.tar.gz
-    with tarfile.open(model_tar_path, "r:gz") as tar:
-        tar.extractall(path=local_model_path)
+    # Download the entire model directory from S3
+    download_s3_directory(s3_bucket, model_s3_prefix, local_model_path)
+    print(f"Model directory downloaded from S3: {model_s3_prefix}")
 
     # Download the min_max_values.json from S3
     min_max_path = os.path.join(local_model_path, "min_max_values.json")
@@ -46,16 +40,34 @@ async def load_model(global_vars):
 
     print(f"Model and min-max values loaded from version {highest_version}")
 
- # Get the highest version folder
+# Function to download an entire directory from S3
+def download_s3_directory(bucket_name, s3_prefix, local_path):
+    paginator = s3.get_paginator('list_objects_v2')
+    for page in paginator.paginate(Bucket=bucket_name, Prefix=s3_prefix):
+        for obj in page.get('Contents', []):
+            s3_key = obj['Key']
+            # Calculate the relative path
+            relative_path = os.path.relpath(s3_key, s3_prefix)
+            local_file_path = os.path.join(local_path, relative_path)
+            
+            # Ensure the directory exists locally
+            if s3_key.endswith('/'):
+                os.makedirs(local_file_path, exist_ok=True)
+            else:
+                os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+                print(f"Downloading s3://{bucket_name}/{s3_key} to {local_file_path}")
+                s3.download_file(bucket_name, s3_key, local_file_path)
+
+# Function to get the highest version folder
 def get_highest_version_folder(s3_bucket, s3_prefix):
-        response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
-        version_numbers = []
-        if 'Contents' in response:
-            for obj in response['Contents']:
-                folder_name = obj['Key'].split('/')[1]
-                if folder_name.isdigit():
-                    version_numbers.append(int(folder_name))
-        if version_numbers:
-            return max(version_numbers)
-        else:
-            raise Exception("No version folders found in the S3 bucket")
+    response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
+    version_numbers = []
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            folder_name = obj['Key'].split('/')[1]
+            if folder_name.isdigit():
+                version_numbers.append(int(folder_name))
+    if version_numbers:
+        return max(version_numbers)
+    else:
+        raise Exception("No version folders found in the S3 bucket")

@@ -1,8 +1,8 @@
 {
  "{'layers': [{'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'batch_normalization'}, {'type': 'lstm', 'units': 64, 'return_sequences': True}, {'type': 'batch_normalization'}, {'type': 'lstm', 'units': 64, 'return_sequences': False}, {'type': 'batch_normalization'}, {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer': 'ones'}, {'type': 'batch_normalization'}, {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer': 'ones'}, {'type': 'batch_normalization'}, {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer': 'ones'}, {'type': 'batch_normalization'}, {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer': 'ones'}, {'type': 'reshape', 'target_shape': (7, 7)}, {'type': 'output'}], 'learning_rate': 0.01, 'optimiser': 'adadelta'}": {
   "losses": {
-   "1": 119.9235,
-   "test": -4569.2012
+   "1": 120.0867,
+   "test": -4853.9282
   }
  }
 }

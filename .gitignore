@@ -5,4 +5,5 @@ coaching_optimiser_venv/
 __pycache__/
 .DS_Store/
 reports_data/
+model_export/
 
