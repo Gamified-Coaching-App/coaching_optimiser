@@ -70,11 +70,11 @@ class OutputLayer(layers.Layer):
         tf.debugging.assert_equal(tf.shape(states)[1:], (56, 10), message="original_input shape is incorrect, got {} instead of (56,10)".format(tf.shape(states)))
         
         output = tf.nn.relu(immediate_input)
-        # output = self.enforce_upper_threshold_absolute(output, states)
-        # output = self.enforce_lower_threshold(output)
-        # output = self.enforce_rest_days(output, states_indexable)
-        # output = self.enforce_logical_correctness(output)
-        # output = tf.nn.relu(output)
+        output = self.enforce_upper_threshold_absolute(output, states)
+        output = self.enforce_lower_threshold(output)
+        #output = self.enforce_rest_days(output, states_indexable)
+        output = self.enforce_logical_correctness(output)
+        output = tf.nn.relu(output)
         return output
     
     def overwrite_output(self, actions, states_indexable):

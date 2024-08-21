@@ -37,10 +37,10 @@ class Environment:
         Calculates the reward by combining outputs from progress and injury functions, and any penalties.
         To-Do: Consider making the entire reawrd function non-differentiable using tf.stop_gradient.
         """
-        progress = get_progress(states, actions, self.min_max_values)
+        progress, median_running_progress = get_progress(states, actions, self.min_max_values)
         #injury_scores = get_injury_score(self, states, actions)
         # injury_scores = tf.stop_gradient(injury_scores)
-        hard_penalties = get_hard_penalty(states, actions, self.min_max_values, epoch)
+        hard_penalties, compliance_ratio = get_hard_penalty(states, actions, self.min_max_values, epoch)
         rewards = progress - hard_penalties #+ progress # #+ progress #- injury_scores - hard_penalties 
 
-        return rewards
+        return rewards, median_running_progress, compliance_ratio

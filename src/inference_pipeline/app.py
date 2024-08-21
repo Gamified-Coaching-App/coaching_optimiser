@@ -33,9 +33,7 @@ async def predict_endpoint(request: Request):
     try:
         preprocessed_normalised_data, user_ids = preprocess(input, global_vars['min_max_values'])
         print("shape of preprocessed_normalised_data", preprocessed_normalised_data.shape)
-        results = global_vars['predict'](preprocessed_normalised_data)['output_0'].numpy()
-        print("results", results)
-        print("shape of results", results.shape)    
+        results = global_vars['predict'](preprocessed_normalised_data)['output_0'].numpy()    
         postprocessed_results = postprocess(results, global_vars['min_max_values'])
         formatted_results = format_output(postprocessed_results, user_ids)
     except Exception as e:

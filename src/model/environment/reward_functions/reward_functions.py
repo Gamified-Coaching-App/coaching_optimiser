@@ -12,7 +12,7 @@ from training_data.training_data import InputData, OutputData
 
 def get_progress(states, actions, min_max_values):
     states = InputData(states)
-    actions = OutputData(actions) 
+    actions = OutputData(actions)
     
     # Calculate absolute values for each variable
 
@@ -54,7 +54,7 @@ def get_progress(states, actions, min_max_values):
 
     epsilon = 0.01
     # Calculate the deltas for each variable
-    progress = mean_actions_total_km / ( mean_states_total_km + epsilon)
+    progress_running = mean_actions_total_km / ( mean_states_total_km + epsilon)
     # delta_km_Z3_4 = mean_actions_km_Z3_4 - mean_states_km_Z3_4
     # delta_km_Z5_T1_T2 = mean_actions_km_Z5_T1_T2 - mean_states_km_Z5_T1_T2
     # delta_km_sprinting = mean_actions_km_sprinting - mean_states_km_sprinting
@@ -66,10 +66,9 @@ def get_progress(states, actions, min_max_values):
     #                   delta_km_Z5_T1_T2 + delta_km_sprinting + 
     #                   delta_strength_training + delta_hours_alternative)
         
-    print("Median progress:", np.median(progress.numpy()))
-    tf.print("Mean progress:", tf.reduce_mean(progress))
+    median_running_progress =  np.median(progress_running.numpy())
 
-    return tf.nn.tanh(progress * 2.0) * 100
+    return tf.nn.tanh(progress_running * 2.0) * 100, median_running_progress
 
 def get_injury_score(self, states, actions):
     data = prepare_data_subjective_parameter_forecaster(states, actions)
@@ -80,10 +79,6 @@ def get_injury_score(self, states, actions):
     return injury_scores
 
 def get_hard_penalty(states, actions, min_max_values, epoch):
-    if epoch < 10:
-        HARD_PENALTY = 1.0
-    else:
-        HARD_PENALTY = epoch
 
     states = InputData(states)
     actions = OutputData(actions)
@@ -99,8 +94,13 @@ def get_hard_penalty(states, actions, min_max_values, epoch):
 
     condition = test_overall_load(states_total_km, actions_total_km, states_strength_training, actions_strength_training, states_hours_alternative, actions_hours_alternative)
 
-    penalties = condition * HARD_PENALTY
-    
-    tf.print("Percentage of compliance:", tf.round((tf.reduce_sum(tf.cast(tf.equal(condition, 0), tf.float32)) / tf.size(condition, out_type=tf.float32)) * 100 * 100) / 100, "%")
+    compliance_ratio = tf.round((tf.reduce_sum(tf.cast(tf.equal(condition, 0), tf.float32)) / tf.size(condition, out_type=tf.float32)) * 100 * 100) / 100
 
-    return penalties
+    if epoch < 10:
+        HARD_PENALTY = 10
+    else:
+        HARD_PENALTY =  epoch #* compliance_ratio/100
+
+    penalties = condition * HARD_PENALTY
+   
+    return penalties, compliance_ratio

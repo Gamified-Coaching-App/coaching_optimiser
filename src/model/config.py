@@ -1,25 +1,33 @@
 model_configs = [
     {
+        'name': 'Transformer+Dense',
         'layers': [
-                    #{'type': 'lstm', 'units': 128, 'return_sequences': True},
-                    # {'type': 'lstm', 'units': 64, 'return_sequences': True},
-                    # {'type': 'lstm', 'units': 64, 'return_sequences': True},
-                    # {'type': 'flatten'},
-                    # {'type': 'dense', 'units': 256, 'activation': 'selu'},
-                    # {'type': 'dense', 'units': 128, 'activation': 'selu'},
-                    # {'type': 'dense', 'units': 64, 'activation': 'selu'},
-                    # {'type': 'lstm', 'units': 512, 'return_sequences': True},
-                    # {'type': 'lstm', 'units': 256, 'return_sequences': True},
-                    # {'type': 'lstm', 'units': 128, 'return_sequences': True},
+            {'type': 'transformer_encoder', 'num_heads': 4, 'intermediate_dim': 1000, 'dropout': 0.01, 'normalize_first': False, 'activation': 'gelu'},
+            {'type': 'transformer_decoder', 'num_heads': 4, 'intermediate_dim': 1000, 'dropout': 0.01, 'normalize_first': False, 'activation': 'gelu'},
+            {'type': 'flatten'},
+            {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+            {'type': 'reshape', 'target_shape': (7, 7)},
+            {'type': 'output'}  
+        ],
+        'learning_rate': 0.001,
+        'optimiser': 'adamw',
+        'batch_size': 512,
+        'learning_rate_schedule': {
+            'initial_learning_rate': 0.001,       # Start with 0 if you're warming up to a target learning rate
+            'target_learning_rate': 0.1,        # The learning rate you want to achieve after warmup
+            'warmup_steps': 1000,               # Number of steps to warmup over
+            'decay_steps': 10000,               # Number of steps to decay over
+            'alpha': 0.01                        # Minimum learning rate value as a fraction of target_learning_rate after decay
+        }
+    },
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 200 + OutputLayer',
+        'layers': [
                     {'type': 'lstm', 'units': 64, 'return_sequences': True},
                     {'type' : 'batch_normalization'},
                     {'type': 'lstm', 'units': 64, 'return_sequences': True},
                     {'type' : 'batch_normalization'},
                     {'type': 'lstm', 'units': 64, 'return_sequences': False},
                     {'type' : 'batch_normalization'},
-                    # {'type': 'lstm', 'units': 64, 'return_sequences': True},
-                    #{'type': 'lstm', 'units': 64, 'return_sequences': True},
-                    # {'type': 'lstm', 'units': 10, 'return_sequences': False},
                     {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
                     {'type' : 'batch_normalization'},
                     {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
@@ -30,8 +38,249 @@ model_configs = [
                     {'type': 'reshape', 'target_shape': (7, 7)},
                     {'type': 'output'}
                 ], 
-                'learning_rate': 0.01,
-                'optimiser': 'adadelta'
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 200 + OutputLayer',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
+    },
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 200 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 200 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
+    },
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 100 + OutputLayer',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 100
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 100 + OutputLayer',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 100
+    },
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 100 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 100
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 100 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 100
+    }, 
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 1000 + OutputLayer',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 1000
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 1000 + OutputLayer',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 1000
+    },
+    {   'name': 'LSTM64+BatchNormx3 + 100+BatchNormx3 + 49 + batch_size 1000 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 1000
+    },
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 1000 + ReLu',
+        'layers': [
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': True},
+                    {'type': 'lstm', 'units': 64, 'return_sequences': False},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 1000
+    }, 
+    {   'name': 'LSTM64x3 + 100x3 + 49 + batch_size 200 + OutputLayer',
+        'layers': [
+                    {'type': 'flatten'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'output'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
+    },
+    {   'name': '100+BatchNormx3 + 49 + batch_size 200 + ReLu',
+        'layers': [
+                    {'type': 'flatten'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 100, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type' : 'batch_normalization'},
+                    {'type': 'dense', 'units': 49, 'activation': 'relu', 'kernel_initializer': 'he_normal', 'bias_initializer':'ones'},
+                    {'type': 'reshape', 'target_shape': (7, 7)},
+                    {'type': 'activation', 'activation': 'relu'}
+                ], 
+                'learning_rate': 0.1,
+                'optimiser': 'adadelta',
+                'batch_size': 200
     }
 ]
     # {

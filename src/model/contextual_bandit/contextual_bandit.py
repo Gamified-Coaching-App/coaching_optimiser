@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import models, layers, optimizers
 from tensorflow.keras.models import load_model
+from keras_nlp.layers import TransformerEncoder, TransformerDecoder
 from contextual_bandit.OutputLayer.OutputLayer import OutputLayer
 
 class ContextualBandit(tf.Module):
@@ -23,11 +24,26 @@ class ContextualBandit(tf.Module):
         self.action_shape = action_shape
         self.env = env
         self.model = self.create_model(config['layers'])
+        lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
+            initial_learning_rate=config['learning_rate_schedule']['initial_learning_rate'],
+            decay_steps=config['learning_rate_schedule']['decay_steps'],
+            warmup_target=config['learning_rate_schedule']['target_learning_rate'],
+            warmup_steps=config['learning_rate_schedule']['warmup_steps'],
+            alpha=config['learning_rate_schedule']['alpha']  # Set to a fraction of the initial LR as the minimum LR after decay
+        )
+        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate=config['learning_rate'],
+            decay_steps=100000,
+            decay_rate=0.96,
+            staircase=True)
         if config['optimiser'] == 'adam':
-            self.optimizer = optimizers.Adam(learning_rate=config['learning_rate'])
+            self.optimizer = optimizers.Adam(learning_rate=lr_schedule, weight_decay=0.01)
             print("Using Adam optimizer")
+        elif config['optimiser'] == 'adamw':
+            self.optimizer = optimizers.AdamW(learning_rate=lr_schedule, weight_decay=0.01)
+            print("Using AdamW optimizer with learning rate scheduling")
         else:
-            self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'], rho = 0.99)
+            self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'])
             print("Using Adadelta optimizer")
         
     def create_model(self, config):
@@ -127,11 +143,33 @@ class ContextualBandit(tf.Module):
                 }
                 x = layers.AlphaDropout(**params)(x)
 
-            elif layer_type == 'activation':
-                x = layers.Activation('relu')(x)
+            elif layer_type == 'transformer_encoder':
+                params = {
+                    'num_heads': layer_config['num_heads'],
+                    'intermediate_dim': layer_config['intermediate_dim'],
+                    'dropout': layer_config.get('dropout'),
+                    'activation': layer_config.get('activation'), 
+                    'normalize_first': layer_config.get('normalize_first')
+                }
+                x = TransformerEncoder(**params)(x)
+            
+            elif layer_type == 'transformer_decoder':
+                params = {
+                    'num_heads': layer_config['num_heads'],
+                    'intermediate_dim': layer_config['intermediate_dim'],
+                    'dropout': layer_config.get('dropout'),
+                    'activation': layer_config.get('activation'), 
+                    'normalize_first': layer_config.get('normalize_first')
+                }
+                x = TransformerDecoder(**params)(x)
 
             elif layer_type == 'flatten':
                 x = layers.Flatten()(x)
+
+            elif layer_type == 'activation':
+                output = layers.Activation(layer_config['activation'])(x)
+                model = models.Model(inputs=original_input, outputs=output)
+                return model
 
             elif layer_type == 'output':
                 immediate_input = x
@@ -151,7 +189,7 @@ class ContextualBandit(tf.Module):
         """
         with tf.GradientTape() as tape:
             actions = self.get_actions(states, training=True)
-            rewards = self.env.get_rewards(actions, states, epoch)
+            rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, states, epoch)
             loss = -tf.reduce_mean(rewards)
         gradients = tape.gradient(loss, self.model.trainable_variables)
         all_gradients_zero = all(tf.reduce_sum(tf.abs(grad)).numpy() == 0 for grad in gradients)
@@ -160,7 +198,7 @@ class ContextualBandit(tf.Module):
         #elif all_gradients_zero:
             #print("All gradients are zero. Loss is ", loss.numpy())
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
-        return -loss, actions, rewards, all_gradients_zero
+        return -loss, actions, rewards, all_gradients_zero, median_running_progress, compliance_ratio
     
     def test(self, test_states):
         """
@@ -173,6 +211,6 @@ class ContextualBandit(tf.Module):
         - rewards: The rewards obtained from the environment based on the model's actions.
         """
         actions = self.get_actions(test_states, training=False)
-        rewards = self.env.get_rewards(actions, test_states, 1000)
+        rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, test_states, 500)
         loss = -tf.reduce_mean(rewards)
-        return -loss
+        return -loss, median_running_progress, compliance_ratio
