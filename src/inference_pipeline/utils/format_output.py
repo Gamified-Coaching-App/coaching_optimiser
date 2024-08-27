@@ -1,4 +1,5 @@
 def format_output(output, user_ids):
+    print("formatting output...")
     feature_order = [
         "kmTotal",
         "kmZ3Z4",
