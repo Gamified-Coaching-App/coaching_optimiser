@@ -9,13 +9,10 @@ def postprocess(output, min_max_values):
 def convert_to_absolute_values(output_object, min_max_values):
     result = []
     variables = [
-       'nr. sessions',
         'total km',
         'km Z3-4',
         'km Z5-T1-T2',
-        'km sprinting',
-        'strength training',
-        'hours alternative'
+        'km sprinting'
     ]
     
     for var in variables:
