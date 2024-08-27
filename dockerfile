@@ -26,5 +26,5 @@ COPY src/training_data/training_data.py /app/training_data/training_data.py
 EXPOSE 80
 
 # Run the application with uvicorn
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"] 
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80", "--reload"] 
 #, "--reload"
