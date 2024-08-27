@@ -7,6 +7,8 @@ def postprocess(output, min_max_values):
     return convert_to_absolute_values(output_object, min_max_values)
 
 def convert_to_absolute_values(output_object, min_max_values):
+    print("converting to absolute values...")
+    
     result = []
     variables = [
         'total km',
@@ -16,11 +18,9 @@ def convert_to_absolute_values(output_object, min_max_values):
     ]
     
     for var in variables:
-        # Assuming get_absolute_values returns an array of shape (batch, 7)
         abs_values = get_absolute_values(output_object[var], min_max_values, var)
         result.append(abs_values)
     
-    # Stack the results along a new last axis to get shape (batch, 7, 7)
     stacked_result = np.stack(result, axis=-1)
     
     return stacked_result
