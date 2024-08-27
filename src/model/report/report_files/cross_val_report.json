@@ -1,0 +1,42 @@
+{
+    "LSTM+Dense_fold_1": {
+        "val_median_progress": 1.14,
+        "val_compliance_ratios": 99.998
+    },
+    "LSTM+Dense_fold_2": {
+        "val_median_progress": 1.142,
+        "val_compliance_ratios": 100.0
+    },
+    "LSTM+Dense_fold_3": {
+        "val_median_progress": 1.149,
+        "val_compliance_ratios": 99.999
+    },
+    "LSTM+Dense_fold_4": {
+        "val_median_progress": 1.138,
+        "val_compliance_ratios": 100.0
+    },
+    "LSTM+Dense_fold_5": {
+        "val_median_progress": 1.148,
+        "val_compliance_ratios": 99.998
+    },
+    "LSTM+Dense_fold_6": {
+        "val_median_progress": 1.137,
+        "val_compliance_ratios": 99.999
+    },
+    "LSTM+Dense_fold_7": {
+        "val_median_progress": 1.141,
+        "val_compliance_ratios": 100.0
+    },
+    "LSTM+Dense_fold_8": {
+        "val_median_progress": 1.143,
+        "val_compliance_ratios": 100.0
+    },
+    "LSTM+Dense_fold_9": {
+        "val_median_progress": 1.142,
+        "val_compliance_ratios": 99.998
+    },
+    "LSTM+Dense_fold_10": {
+        "val_median_progress": 1.156,
+        "val_compliance_ratios": 99.995
+    }
+}

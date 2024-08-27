@@ -24,23 +24,21 @@ class ContextualBandit(tf.Module):
         self.action_shape = action_shape
         self.env = env
         self.model = self.create_model(config['layers'])
-        lr_schedule = tf.keras.optimizers.schedules.CosineDecay(
-            initial_learning_rate=config['learning_rate_schedule']['initial_learning_rate'],
-            decay_steps=config['learning_rate_schedule']['decay_steps'],
-            warmup_target=config['learning_rate_schedule']['target_learning_rate'],
-            warmup_steps=config['learning_rate_schedule']['warmup_steps'],
-            alpha=config['learning_rate_schedule']['alpha']  # Set to a fraction of the initial LR as the minimum LR after decay
-        )
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=config['learning_rate'],
-            decay_steps=100000,
-            decay_rate=0.96,
-            staircase=True)
+        if 'learning_rate_schedule' in config:
+            lr = tf.keras.optimizers.schedules.CosineDecay(
+                initial_learning_rate=config['learning_rate_schedule']['initial_learning_rate'],
+                decay_steps=config['learning_rate_schedule']['decay_steps'],
+                warmup_target=config['learning_rate_schedule']['target_learning_rate'],
+                warmup_steps=config['learning_rate_schedule']['warmup_steps'],
+                alpha=config['learning_rate_schedule']['alpha']  # Set to a fraction of the initial LR as the minimum LR after decay
+            )
+        else:
+            lr = config['learning_rate']
         if config['optimiser'] == 'adam':
-            self.optimizer = optimizers.Adam(learning_rate=lr_schedule, weight_decay=0.01)
+            self.optimizer = optimizers.Adam(learning_rate=lr, weight_decay=0.0)
             print("Using Adam optimizer")
         elif config['optimiser'] == 'adamw':
-            self.optimizer = optimizers.AdamW(learning_rate=lr_schedule, weight_decay=0.01)
+            self.optimizer = optimizers.AdamW(learning_rate=lr, weight_decay=0.0)
             print("Using AdamW optimizer with learning rate scheduling")
         else:
             self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'])
@@ -125,6 +123,9 @@ class ContextualBandit(tf.Module):
             elif layer_type == 'max_pooling1d':
                 x = layers.MaxPooling1D(pool_size=layer_config['pool_size'])(x)
 
+            elif layer_type == 'global_average_pooling1d':
+                x = layers.GlobalAveragePooling1D()(x)
+
             elif layer_type == 'dropout':
                 x = layers.Dropout(rate=layer_config['rate'])(x)
 
@@ -181,9 +182,14 @@ class ContextualBandit(tf.Module):
         """
         Generates actions based on model predictions.
         """
-        return self.model(states, training=training)
+        actions = self.model(states, training=training)
+        if tf.reduce_any(tf.math.is_nan(actions)):
+            if tf.reduce_any(tf.math.is_nan(states)):
+                print("NaN values found in the 'states' tensor.")
+            raise ValueError("NaN values found in the 'actions' tensor.")
+        return actions
 
-    def train(self, states, athlete_ids, epoch):
+    def train(self, states, epoch):
         """
         Trains the model using states from the environment and corresponding rewards.
         """
@@ -195,12 +201,10 @@ class ContextualBandit(tf.Module):
         all_gradients_zero = all(tf.reduce_sum(tf.abs(grad)).numpy() == 0 for grad in gradients)
         if any(grad is None for grad in gradients):
             raise ValueError("At least one gradient is None.")
-        #elif all_gradients_zero:
-            #print("All gradients are zero. Loss is ", loss.numpy())
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
-        return -loss, actions, rewards, all_gradients_zero, median_running_progress, compliance_ratio
+        return -loss, all_gradients_zero, median_running_progress, compliance_ratio
     
-    def test(self, test_states):
+    def test(self, test_states, epoch):
         """
         Tests the model using the given test set, makes inferences, and evaluates using the environment.
         
@@ -211,6 +215,6 @@ class ContextualBandit(tf.Module):
         - rewards: The rewards obtained from the environment based on the model's actions.
         """
         actions = self.get_actions(test_states, training=False)
-        rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, test_states, 500)
+        rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, test_states, epoch)
         loss = -tf.reduce_mean(rewards)
         return -loss, median_running_progress, compliance_ratio

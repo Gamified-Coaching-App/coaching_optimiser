@@ -39,7 +39,7 @@ def get_var_index():
 def get_day(data, day=0):
     return data[day, :]
 
-def prepare_data_subjective_parameter_forecaster(states, actions):
+def prepare_data_subjective_parameter_forecaster(states, actions, min_max_values, standardised_min_max_values):
     """
     Prepares the data for the subjective parameter forecast model.
     
@@ -54,18 +54,158 @@ def prepare_data_subjective_parameter_forecaster(states, actions):
 
     Returns:
         tf.Tensor: Tensor of shape [samples, 10, 14] after processing.
+
     """
-    # Extend actions to 10 days by appending 3 columns of zeros
-    zero_padding_days = tf.zeros([tf.shape(actions)[0], tf.shape(actions)[1], 3], dtype=actions.dtype)
-    actions_padded = tf.concat([actions, zero_padding_days], axis=2)
-    # Slice the last 7 days from states
-    states_sliced = states[:, -7:, :]  # Take the last 7 rows
-    # Concatenate states and actions along the variable dimension (vertical stack)
-    combined_data = tf.concat([actions_padded, states_sliced], axis=1)
 
-    return combined_data
+    original_actions = tf.identity(actions)
 
-def prepare_data_injury_model(data):
+    # Add Nr. Sessions, Strength Sessions and Hours Alternative + Subj to actions: result is batch, 7, 10
+    actions = add_missing_variables(actions)
+
+    if actions.shape[1:] != (7, 10):
+        raise ValueError(f"Expected actions to have shape [batch, 7, 10], but got {actions.shape}")
+    if not tf.reduce_all(tf.equal(actions[:, :, 1:5], original_actions)):
+        raise ValueError(f"Variable addition has errors, expected")
+    if not tf.reduce_all(tf.equal(actions[:, :, 6:9], tf.zeros_like(actions[:, :, 6:9]))):
+        raise ValueError(f"Variables at indices 6-9 are not all zeros")
+    
+    # Save the original states and actions
+    original_states = tf.identity(states)
+    original_actions = tf.identity(actions)
+    
+    # Concatenate actions and states along the days dimension
+    actions = tf.concat([states, actions], axis=1)
+
+    if actions.shape[1:] != (63, 10):
+        raise ValueError(f"Expected actions to have shape [batch, 63, 10], but got {actions.shape}")
+    if not tf.reduce_all(tf.equal(actions[:, -7:, :], original_actions)):
+        raise ValueError(f"Actions: Tensors wrongly concatenated across days dimension")
+    if not tf.reduce_all(tf.equal(actions[:, :-7, :], original_states)):
+        raise ValueError(f"States: Tensors wrongly concatenated across days dimension")
+    
+    actions = convert_to_absolute_values(actions, min_max_values)
+    if actions.shape[1:] != (63, 10):
+        raise ValueError(f"After conversion to absolute: Expected actions to have shape [batch, 63, 10], but got {actions.shape}")
+
+    # standardise the full sequence
+    actions = z_score_normalize(actions)
+
+    if actions.shape[1:] != (63, 10):
+        raise ValueError(f"After z-score normalisation: Expected actions to have shape [batch, 63, 10], but got {actions.shape}")
+
+    # Slice the last 14 days from full sequence 
+    actions = actions[:, -14:, :]
+
+    if actions.shape[1:] != (14, 10):
+        raise ValueError(f"After slicing 14 days: Expected actions to have shape [batch, 14, 10], but got {actions.shape}")
+
+    actions = min_max_normalize(actions, standardised_min_max_values)
+    if actions.shape[1:] != (14, 10):
+        raise ValueError(f"After min-max normalise: Expected actions to have shape [batch, 14, 10], but got {actions.shape}")
+
+    # # pad actions with zeros for subjective parameters
+    # padding = tf.zeros([tf.shape(actions)[0], tf.shape(actions)[1], 3], dtype=actions.dtype)
+    # actions = tf.concat([actions, padding], axis=2)
+
+    original_actions = tf.identity(actions)
+    # Extract the first 7 days for the last 3 variables
+    first_7_days_last_3 = actions[:, :7, -3:]
+    # Create padding of zeros with shape (batch_size, 7 days, 3 variables)
+    padding_zeros = tf.zeros_like(first_7_days_last_3)
+    # Concatenate the first 7 days last 3 variables with the zero padding to create the 14x3 padding
+    padding = tf.concat([first_7_days_last_3, padding_zeros], axis=1)
+    # Extract the first 7 variables across all days
+    first_7_vars_all_days = actions[:, :, :-3]
+    # Concatenate the first 7 variables (across all days) with the 14x3 padding
+    actions = tf.concat([first_7_vars_all_days, padding], axis=-1)
+
+    if actions.shape[1:] != (14, 10):
+        raise ValueError(f"After min-max normalise: Expected actions to have shape [batch, 14, 10], but got {actions.shape}")
+    if not tf.reduce_all(tf.equal(actions[:, :7, :], original_actions[:, :7, :])):
+        raise ValueError(f"Final step: first 7 days all vars are not the same")
+    if not tf.reduce_all(tf.equal(actions[:, -7:, :-3], original_actions[:, -7:, :-3])):
+        raise ValueError(f"Final step: last 7 days first 7 vars are not the same")
+    if not tf.reduce_all(tf.equal(actions[:, -7:, -3:], tf.zeros_like(actions[:, -7:, -3:]))):
+        raise ValueError(f"Final step: last 7 days last 3 vars are not zeros")
+
+    return actions
+
+def add_missing_variables(actions):
+    # Step 1: Compute the tanh of the first action column multiplied by 1000
+    nr_sessions = tf.tanh(actions[:, :, 0] * 1000)
+    nr_sessions = tf.expand_dims(nr_sessions , axis=2)  # Expand dimensions to match the shape for concatenation
+    
+    # Step 2: Add the tanh_row as the first column
+    actions = tf.concat([nr_sessions , actions], axis=2)
+
+    if actions.shape[1:] != (7,5):
+        raise ValueError(f"Expected actions to have shape [batch, 7, 5], but got {actions.shape}")
+    
+    # Step 3: Add zeros padding as the new columns (6,7,8,9) to make data batch, 7, 10
+    padding = tf.zeros([tf.shape(actions)[0], tf.shape(actions)[1], 5], dtype=actions.dtype)
+    actions = tf.concat([actions, padding], axis=2)
+
+    if actions.shape[1:] != (7,10):
+        raise ValueError(f"Expected actions to have shape [batch, 7, 10], but got {actions.shape}")
+    
+    return actions
+
+def z_score_normalize(full_sequence):
+    # Compute the mean and standard deviation for each variable (across the sequence)
+    mean = tf.reduce_mean(full_sequence, axis=[0, 1], keepdims=True)
+    stddev = tf.math.reduce_std(full_sequence, axis=[0, 1], keepdims=True)
+    
+    # Z-score normalization
+    normalized_sequence = (full_sequence - mean) / stddev
+    
+    return normalized_sequence
+
+def convert_to_absolute_values(actions, min_max_values):
+    # Convert each variable separately using get_absolute_values and expand dims
+    nr_sessions = tf.expand_dims(get_absolute_values(actions[:, :, 0], min_max_values, 'nr. sessions'), axis=-1)
+    total_km = tf.expand_dims(get_absolute_values(actions[:, :, 1], min_max_values, 'total km'), axis=-1)
+    km_z3_4 = tf.expand_dims(get_absolute_values(actions[:, :, 2], min_max_values, 'km Z3-4'), axis=-1)
+    km_z5_t1_t2 = tf.expand_dims(get_absolute_values(actions[:, :, 3], min_max_values, 'km Z5-T1-T2'), axis=-1)
+    km_sprinting = tf.expand_dims(get_absolute_values(actions[:, :, 4], min_max_values, 'km sprinting'), axis=-1)
+    strength_training = tf.expand_dims(get_absolute_values(actions[:, :, 5], min_max_values, 'strength training'), axis=-1)
+    hours_alternative = tf.expand_dims(get_absolute_values(actions[:, :, 6], min_max_values, 'hours alternative'), axis=-1)
+    perceived_exertion = tf.expand_dims(get_absolute_values(actions[:, :, 7], min_max_values, 'perceived exertion'), axis=-1)
+    perceived_training_success = tf.expand_dims(get_absolute_values(actions[:, :, 8], min_max_values, 'perceived trainingSuccess'), axis=-1)
+    perceived_recovery = tf.expand_dims(get_absolute_values(actions[:, :, 9], min_max_values, 'perceived recovery'), axis=-1)
+
+    # Concatenate all the absolute values along the last dimension
+    absolute_values_tensor = tf.concat([
+        nr_sessions, total_km, km_z3_4, km_z5_t1_t2, km_sprinting,
+        strength_training, hours_alternative, perceived_exertion,
+        perceived_training_success, perceived_recovery
+    ], axis=-1)
+    
+    return absolute_values_tensor
+
+def min_max_normalize(actions, standardised_min_max_values):
+    # Normalize each variable individually
+    nr_sessions = (actions[:, :, 0] - standardised_min_max_values['nr. sessions']['min']) / (standardised_min_max_values['nr. sessions']['max'] - standardised_min_max_values['nr. sessions']['min'])
+    total_km = (actions[:, :, 1] - standardised_min_max_values['total km']['min']) / (standardised_min_max_values['total km']['max'] - standardised_min_max_values['total km']['min'])
+    km_z3_4 = (actions[:, :, 2] - standardised_min_max_values['km Z3-4']['min']) / (standardised_min_max_values['km Z3-4']['max'] - standardised_min_max_values['km Z3-4']['min'])
+    km_z5_t1_t2 = (actions[:, :, 3] - standardised_min_max_values['km Z5-T1-T2']['min']) / (standardised_min_max_values['km Z5-T1-T2']['max'] - standardised_min_max_values['km Z5-T1-T2']['min'])
+    km_sprinting = (actions[:, :, 4] - standardised_min_max_values['km sprinting']['min']) / (standardised_min_max_values['km sprinting']['max'] - standardised_min_max_values['km sprinting']['min'])
+    strength_training = (actions[:, :, 5] - standardised_min_max_values['strength training']['min']) / (standardised_min_max_values['strength training']['max'] - standardised_min_max_values['strength training']['min'])
+    hours_alternative = (actions[:, :, 6] - standardised_min_max_values['hours alternative']['min']) / (standardised_min_max_values['hours alternative']['max'] - standardised_min_max_values['hours alternative']['min'])
+    perceived_exertion = (actions[:, :, 7] - standardised_min_max_values['perceived exertion']['min']) / (standardised_min_max_values['perceived exertion']['max'] - standardised_min_max_values['perceived exertion']['min'])
+    perceived_training_success = (actions[:, :, 8] - standardised_min_max_values['perceived trainingSuccess']['min']) / (standardised_min_max_values['perceived trainingSuccess']['max'] - standardised_min_max_values['perceived trainingSuccess']['min'])
+    perceived_recovery = (actions[:, :, 9] - standardised_min_max_values['perceived recovery']['min']) / (standardised_min_max_values['perceived recovery']['max'] - standardised_min_max_values['perceived recovery']['min'])
+    
+    # Concatenate all the normalized variables along the last dimension
+    normalized_values_tensor = tf.stack([
+        nr_sessions, total_km, km_z3_4, km_z5_t1_t2, km_sprinting,
+        strength_training, hours_alternative, perceived_exertion,
+        perceived_training_success, perceived_recovery
+    ], axis=-1)
+    
+    return normalized_values_tensor
+
+
+def prepare_data_injury_model(last_14_days, subjective_params):
     """
     Prepares the data for the injury model by first slicing out the last 7 days from the input tensor,
     then reordering the data to concatenate each variable's data across these days into a single vector per sample,
@@ -79,8 +219,22 @@ def prepare_data_injury_model(data):
         pd.DataFrame: DataFrame with shape [batch, 70], where each column is named according to the
                       variable and day it represents.
     """
-
-    return data[:, -7:, :]
+    if last_14_days.shape[1:] != (14, 10):
+        raise ValueError(f"Expected data to have shape [batch, 14, 10], but got {last_14_days.shape}")
+    if subjective_params.shape[1:] != (7, 3):
+        raise ValueError(f"Expected subjective_params to have shape [batch, 14, 3], but got {subjective_params.shape}")
+    
+    # Extract last 7 days from the last 14 days
+    last_7_days = last_14_days[:, -7:, :]
+    
+    # Replace the 7th, 8th, and 9th variables with subjective_params
+    # subjective_params is assumed to be of shape (batch, 7, 3)
+    last_7_days = tf.concat([
+        last_7_days[:, :, :7],   
+        subjective_params        
+    ], axis=2)
+    
+    return last_7_days
 
 def get_absolute_values(data, min_max_values, variable='total km'):
     """
@@ -141,93 +295,15 @@ def smooth_count(tensor):
     return STEEPNESS_COUNT * tf.nn.tanh(tensor)
 
 """ Average km per day shall be no more than 2x compared to the last 28 days"""
-def test_overall_load(states_total_km, actions_total_km, states_strength_training, actions_strength_training, states_hours_alternative, actions_hours_alternative):
-    # RUNNING LOAD
+def test_overall_load(states_total_km, actions_total_km):
+
     avg_states_km_total = tf.reduce_mean(states_total_km[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
     avg_actions_km_total = tf.reduce_mean(actions_total_km, axis=1)
     running_progression = avg_actions_km_total / (avg_states_km_total + EPSILON)
-    total_actions_km_total = tf.reduce_sum(actions_total_km, axis=1)
 
-    condition_upper_treshold1 = smooth_greater(greater=running_progression, smaller=1.4)
+    condition_upper_treshold1 = smooth_greater(greater=running_progression, smaller=1.5)
     condition_upper_treshold2 = smooth_greater(greater=avg_states_km_total, smaller=10.0/DAYS_FOR_OVERALL_WORKLOAD_COMPARISON)
     condition_upper_treshold = smooth_and(condition_upper_treshold1,  condition_upper_treshold2)
     condition_running = condition_upper_treshold
 
-    # ALTERNATIVE LOAD
-    # avg_states_alternative = tf.reduce_mean(states_hours_alternative[:, -DAYS_FOR_OVERALL_WORKLOAD_COMPARISON:], axis=1)
-    # avg_actions_alternative = tf.reduce_mean(actions_hours_alternative, axis=1) 
-    # condition_alt = smooth_greater(greater=avg_actions_alternative, smaller=1.2 * avg_states_alternative)
-
-    # STRENGTH TRAINING LOAD
-    # strength_total = tf.reduce_sum(actions_strength_training, axis=1)
-    # condition_strength = smooth_greater(smaller=4.0, greater=strength_total)
-
-
-    return condition_running #+ condition_alt + condition_strength
-
-""" DONE: On running days, Z3-4 km shall be no more than 40%, Z5 no more than 30% and sprint km no more than 10% of total km"""
-# def test_running_zone_distribution(actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_total_km):
-#     Z34_upper_threshold_condition = smooth_greater(smaller=0.4 * actions_total_km, greater=actions_km_Z3_4)
-#     Z5_upper_threshold_condition = smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.3 * actions_total_km)
-#     sprint_upper_threshold_condition = smooth_greater(greater=actions_km_sprinting, smaller=0.1 * actions_total_km)
-#     return tf.reduce_sum(Z34_upper_threshold_condition + Z5_upper_threshold_condition + sprint_upper_threshold_condition, axis=1)
-
-""" DONE: Weeks with no runs, no strength or no alternative sessions shall be penalized """
-def test_emtpy_weeks(actions_total_km, actions_hours_alternative, actions_strength_training):
-    total_running_km = tf.reduce_sum(actions_total_km, axis=1)
-    # zero_strength_days = tf.reduce_sum(actions_strength_training, axis=1)
-    # zero_alternative_days = tf.reduce_sum(actions_hours_alternative, axis=1)
-    condition1 = smooth_greater(greater=2.0, smaller=total_running_km)
-    # condition2 = smooth_greater(greater=EPSILON, smaller=zero_strength_days)
-    # condition3 = smooth_greater(greater=EPSILON, smaller=zero_alternative_days)
-    return (condition1)#+ condition2 + condition3) * 1000
-
-""" DONE: Logical errors in the suggestions shall be penalized:
-    - total number of sessions does not equal running sessions (total km > 0) + strength training + alternative sessions
-    - total km = 0 but Z3-4, Z5-T1-T2 or sprinting > 0
- """
-def test_logical_errors(actions_nr_sessions, actions_total_km, actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_strength_training, actions_hours_alternative):
-    running_sessions = smooth_count(actions_total_km)
-    strength_sessions = smooth_count(actions_strength_training)
-    alternative_sessions = smooth_count(actions_hours_alternative)
-    condition1 = smooth_not_equal(running_sessions + strength_sessions + alternative_sessions, actions_nr_sessions)
-    condition2 = smooth_and(smooth_equal(actions_total_km, 0.0), smooth_greater(greater=actions_km_Z3_4, smaller=0.0) + smooth_greater(greater=actions_km_Z5_T1_T2, smaller=0.0) + smooth_greater(greater=actions_km_sprinting, smaller=0.0))
-    result = tf.reduce_sum(condition1 + condition2, axis=1)
-    return result
-
-""" DONE: Small training days shall be penalized, as no workouts can be constructed out of them """
-def test_absolute_bounds(actions_total_km, actions_km_Z3_4, actions_km_Z5_T1_T2, actions_km_sprinting, actions_hours_alternative, actions_strength_training):
-    # Total km either 0 or > 2 km
-    condition1_total_km = smooth_greater(smaller=actions_total_km, greater=2.0)
-    condition2_total_km = smooth_greater(smaller=0.01, greater=actions_total_km)
-    condition_total_km = smooth_and(condition1_total_km, condition2_total_km)
-    
-    # Z3-4 km either 0 or > 0.5 km
-    condition1_km_Z34 = smooth_greater(smaller=actions_km_Z3_4, greater=0.5)
-    condition2_km_Z34 = smooth_greater(smaller=0.0, greater=actions_km_Z3_4)
-    condition_Z34 = smooth_and(condition1_km_Z34, condition2_km_Z34)
-    
-    # Z5-T1-T2 km either 0 or > 0.5 km
-    condition1_km_Z5T1T2 = smooth_greater(smaller=actions_km_Z5_T1_T2, greater=0.5)
-    condition2_km_Z5T1T2 = smooth_greater(smaller=0.0, greater=actions_km_Z5_T1_T2)
-    condition_Z5T1T2 = smooth_and(condition1_km_Z5T1T2, condition2_km_Z5T1T2)
-    
-    # Sprinting km either 0 or > 0.25 km
-    condition1_km_sprinting = smooth_greater(smaller=actions_km_sprinting, greater=0.25)
-    condition2_km_sprinting = smooth_greater(smaller=0.0, greater=actions_km_sprinting)
-    condition_sprinting = smooth_and(condition1_km_sprinting, condition2_km_sprinting)
-    
-    # Alternative hours either 0 or > 0.5 hours
-    condition1_alternative = smooth_greater(smaller=actions_hours_alternative, greater=0.5)
-    condition2_alternative = smooth_greater(smaller=0.0, greater=actions_hours_alternative)
-    condition_alternative = smooth_and(condition1_alternative, condition2_alternative)
-    
-    # CHECK THIS CONDITION AGAIN Strength training 0-1
-    condition1_strength_training = smooth_greater(greater=actions_strength_training, smaller=1.0)
-    condition2_strength_training = smooth_greater(greater=0.0, smaller=actions_strength_training)
-    condition_strength_training = condition1_strength_training + condition2_strength_training
-
-    # On running days Z1-2 km shall be at least 1.5 km to enable warm up
-    condition_Z2 = smooth_and(smooth_greater(greater=actions_total_km, smaller=0.0), smooth_greater(smaller=actions_total_km - actions_km_sprinting - actions_km_Z3_4 - actions_km_Z5_T1_T2, greater=1.5))
-    
-    return tf.reduce_sum(condition_total_km, axis=1)#tf.reduce_sum(condition_total_km + condition_Z34 + condition_Z5T1T2 + condition_sprinting + condition_strength_training + condition_alternative + condition_Z2, axis=1)
+    return condition_running

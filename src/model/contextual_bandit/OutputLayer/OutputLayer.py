@@ -16,14 +16,11 @@ class OutputLayer(layers.Layer):
         super(OutputLayer, self).__init__()
         with open('data/min_max_values.json', 'r') as file:
             self.min_max_values = json.load(file)
-        self.indexes = {
-            'nr. sessions': 0,  
-            'total km': 1,
-            'km Z3-4': 2,
-            'km Z5-T1-T2': 3,
-            'km sprinting': 4,
-            'strength training': 5,
-            'hours alternative': 6
+        self.indexes = { 
+            'total km': 0,
+            'km Z3-4': 1,
+            'km Z5-T1-T2': 2,
+            'km sprinting': 3
         }
         self.lower_thresholds = {
             'nr. sessions': self.scale_absolute_value(config['lower_thresholds']['nr. sessions'], 'nr. sessions'),
@@ -66,7 +63,7 @@ class OutputLayer(layers.Layer):
         immediate_input, states = inputs
         states_indexable = InputData(states)
         
-        tf.debugging.assert_equal(tf.shape(immediate_input)[1:], (7, 7), message="immediate_input shape is incorrect, got {} instead of (7,7)".format(tf.shape(immediate_input)))
+        tf.debugging.assert_equal(tf.shape(immediate_input)[1:], (7, 4), message="immediate_input shape is incorrect, got {} instead of (7,4)".format(tf.shape(immediate_input)))
         tf.debugging.assert_equal(tf.shape(states)[1:], (56, 10), message="original_input shape is incorrect, got {} instead of (56,10)".format(tf.shape(states)))
         
         output = tf.nn.relu(immediate_input)
@@ -76,42 +73,20 @@ class OutputLayer(layers.Layer):
         output = self.enforce_logical_correctness(output)
         output = tf.nn.relu(output)
         return output
-    
-    def overwrite_output(self, actions, states_indexable):
-        states_km = states_indexable['total km']
-        mean_km = tf.reduce_mean(states_km[:, -28:], axis=1)
-        mean_km = tf.expand_dims(mean_km, axis=1)
-        mean_km = tf.tile(mean_km, [1, 7])
-        new_actions = mean_km * 1.4
 
-        actions = tf.concat(
-            [
-                actions[:, :, :self.indexes['total km']],
-                tf.expand_dims(new_actions, axis=2),
-                actions[:, :, self.indexes['total km']+1:]
-            ],
-            axis=2
-            )
-
-        return actions
-
-    
     def build_lower_threshold_tensor(self, inputs):
         batch_size = tf.shape(inputs)[0]
         num_timesteps = tf.shape(inputs)[1]
         lower_threshold_values = [
-            self.lower_thresholds['nr. sessions'],
             self.lower_thresholds['total km'],
             self.lower_thresholds['km Z3-4'],
             self.lower_thresholds['km Z5-T1-T2'],
-            self.lower_thresholds['km sprinting'],
-            self.lower_thresholds['strength training'],
-            self.lower_thresholds['hours alternative'],
+            self.lower_thresholds['km sprinting']
         ]
         lower_threshold_tensor = tf.constant(lower_threshold_values, shape=(1, 1, len(lower_threshold_values)))
         lower_threshold_tensor = tf.tile(lower_threshold_tensor, [batch_size, num_timesteps, 1])
         
-        tf.debugging.assert_equal(tf.shape(lower_threshold_tensor)[1:], (7, 7), message="immediate_input shape is incorrect, got {} instead of (7,7)".format(tf.shape(lower_threshold_tensor)))
+        tf.debugging.assert_equal(tf.shape(lower_threshold_tensor)[1:], (7, 4), message="immediate_input shape is incorrect, got {} instead of (7,4)".format(tf.shape(lower_threshold_tensor)))
 
         return lower_threshold_tensor
     
@@ -122,8 +97,6 @@ class OutputLayer(layers.Layer):
     def enforce_upper_threshold_absolute(self, actions, states):
         states_indexable = InputData(states)
         actions= self.enforce_upper_threshold_per_variable(actions, None, states_indexable, 'total km')
-        actions= self.enforce_upper_threshold_per_variable(actions, None, states_indexable, 'hours alternative')
-        actions= self.enforce_upper_threshold_per_variable(actions, None, states_indexable, 'strength training')
 
         actions_indexable = OutputData(actions)
         actions= self.enforce_upper_threshold_per_variable(actions, actions_indexable, None, 'km Z3-4')
@@ -196,22 +169,7 @@ class OutputLayer(layers.Layer):
 
     
     def enforce_logical_correctness(self, actions):
-        tanh_steepness = 1000.0
         total_km = actions[:, :, self.indexes['total km']]
-        strength_training = actions[:, :, self.indexes['strength training']]
-        hours_alternative = actions[:, :, self.indexes['hours alternative']]
-        
-        # Calculate nr. sessions
-        nr_sessions = tf.tanh(tanh_steepness * total_km) + tf.tanh(tanh_steepness * strength_training) + tf.tanh(tanh_steepness * hours_alternative)
-        nr_sessions = nr_sessions / (self.min_max_values['nr. sessions']['max'] - self.min_max_values['nr. sessions']['min']) + self.min_max_values['nr. sessions']['min']
-        
-        # Update the actions tensor
-        actions = tf.concat(
-            [
-                tf.expand_dims(nr_sessions, axis=2), 
-                actions[:, :, 1:]],
-            axis=2
-        )
         
         # Apply the condition for km values
         km_z3_4 = actions[:, :, self.indexes['km Z3-4']]
@@ -235,29 +193,3 @@ class OutputLayer(layers.Layer):
         )
         
         return actions
-
-
-        
-
-            
-
-    ## enforce max absolute contraints on running km, alternative and strength training
-    ## simply max_km + 5, max_kmZ3 + 2 times the max value in th past 28 days: min max
-
-    ## Logical errors: 
-    ## if total km zero --> all other km zero
-    ## nr. sessions = sigmoid of total km + strength + alternative
-
-    # Enforce ratios
-
-    # Enforce 0,2 bounds on running km, strength training. cut down Z34, z5 sprint to still have 1.5 km zone 2
-
-
-    # def call(self, inputs):
-    #     # Smoothly set values below 2 to 0 using sigmoid
-    #     relu_output = tf.nn.relu(inputs)
-        
-    #     # Smooth approximation: values less than 2 are smoothly transitioned to 0
-    #     smooth_condition = 5 * tf.sigmoid((relu_output - 2))
-    #     output = smooth_condition * relu_output
-    #     return output

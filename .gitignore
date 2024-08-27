@@ -1,9 +1,7 @@
 data/
-coaching_venv_02/
 coaching_optimiser_venv/
 .vscode/
 __pycache__/
 .DS_Store/
-reports_data/
 model_export/
 

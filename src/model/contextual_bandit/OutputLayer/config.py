@@ -10,9 +10,9 @@ config = {
     },
     'upper_thresholds': {
         'ratio_of_total_km': {
-            'km Z3-4': 0.4,
-            'km Z5-T1-T2': 0.2,
-            'km sprinting': 0.1
+            'km Z3-4': 0.15,
+            'km Z5-T1-T2': 0.15,
+            'km sprinting': 0.075
         },
         'increase_vs_history': {
             'total km': 5.0,

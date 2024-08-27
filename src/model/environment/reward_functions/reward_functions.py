@@ -13,14 +13,13 @@ from training_data.training_data import InputData, OutputData
 def get_progress(states, actions, min_max_values):
     states = InputData(states)
     actions = OutputData(actions)
-    
-    # Calculate absolute values for each variable
 
-    states_total_km = get_absolute_values(states['total km'], min_max_values,'total km')
-    actions_total_km = get_absolute_values(actions['total km'], min_max_values,'total km')
+    # Calculate absolute values for all metrics
+    states_total_km = get_absolute_values(states['total km'], min_max_values, 'total km')
+    actions_total_km = get_absolute_values(actions['total km'], min_max_values, 'total km')
 
-    states_km_Z3_4 = get_absolute_values(states['km Z3-4'], min_max_values, 'km Z3-4')
-    actions_km_Z3_4 = get_absolute_values(actions['km Z3-4'], min_max_values, 'km Z3-4')
+    states_km_Z34 = get_absolute_values(states['km Z3-4'], min_max_values, 'km Z3-4')
+    actions_km_Z34 = get_absolute_values(actions['km Z3-4'], min_max_values, 'km Z3-4')
 
     states_km_Z5_T1_T2 = get_absolute_values(states['km Z5-T1-T2'], min_max_values, 'km Z5-T1-T2')
     actions_km_Z5_T1_T2 = get_absolute_values(actions['km Z5-T1-T2'], min_max_values, 'km Z5-T1-T2')
@@ -28,53 +27,43 @@ def get_progress(states, actions, min_max_values):
     states_km_sprinting = get_absolute_values(states['km sprinting'], min_max_values, 'km sprinting')
     actions_km_sprinting = get_absolute_values(actions['km sprinting'], min_max_values, 'km sprinting')
 
-    states_strength_training = get_absolute_values(states['strength training'], min_max_values, 'strength training')
-    actions_strength_training = get_absolute_values(actions['strength training'], min_max_values, 'strength training')
-
-    states_hours_alternative = get_absolute_values(states['hours alternative'], min_max_values, 'hours alternative')
-    actions_hours_alternative = get_absolute_values(actions['hours alternative'], min_max_values, 'hours alternative')
-
+    # Compute mean values for the last 28 days for states and overall for actions
     mean_states_total_km = tf.reduce_mean(states_total_km[:, -28:], axis=1)
     mean_actions_total_km = tf.reduce_mean(actions_total_km, axis=1)
 
-    mean_states_km_Z3_4 = tf.reduce_mean(states_km_Z3_4, axis=1)
-    mean_actions_km_Z3_4 = tf.reduce_mean(actions_km_Z3_4, axis=1)
+    mean_states_km_Z34 = tf.reduce_mean(states_km_Z34[:, -28:], axis=1)
+    mean_actions_km_Z34 = tf.reduce_mean(actions_km_Z34, axis=1)
 
-    mean_states_km_Z5_T1_T2 = tf.reduce_mean(states_km_Z5_T1_T2, axis=1)
+    mean_states_km_Z5_T1_T2 = tf.reduce_mean(states_km_Z5_T1_T2[:, -28:], axis=1)
     mean_actions_km_Z5_T1_T2 = tf.reduce_mean(actions_km_Z5_T1_T2, axis=1)
 
-    mean_states_km_sprinting = tf.reduce_mean(states_km_sprinting, axis=1)
+    mean_states_km_sprinting = tf.reduce_mean(states_km_sprinting[:, -28:], axis=1)
     mean_actions_km_sprinting = tf.reduce_mean(actions_km_sprinting, axis=1)
 
-    mean_states_strength_training = tf.reduce_mean(states_strength_training, axis=1)
-    mean_actions_strength_training = tf.reduce_mean(actions_strength_training, axis=1)
-
-    mean_states_hours_alternative = tf.reduce_mean(states_hours_alternative, axis=1)
-    mean_actions_hours_alternative = tf.reduce_mean(actions_hours_alternative, axis=1)
-
     epsilon = 0.01
-    # Calculate the deltas for each variable
-    progress_running = mean_actions_total_km / ( mean_states_total_km + epsilon)
-    # delta_km_Z3_4 = mean_actions_km_Z3_4 - mean_states_km_Z3_4
-    # delta_km_Z5_T1_T2 = mean_actions_km_Z5_T1_T2 - mean_states_km_Z5_T1_T2
-    # delta_km_sprinting = mean_actions_km_sprinting - mean_states_km_sprinting
-    # delta_strength_training = mean_actions_strength_training - mean_states_strength_training
-    # delta_hours_alternative = mean_actions_hours_alternative - mean_states_hours_alternative
 
-    # Sum the deltas to get the total progress
-    # total_progress = (delta_nr_sessions + delta_total_km + delta_km_Z3_4 + 
-    #                   delta_km_Z5_T1_T2 + delta_km_sprinting + 
-    #                   delta_strength_training + delta_hours_alternative)
+    # Calculate progress for each metric
+    progress_total_km = mean_actions_total_km / (mean_states_total_km + epsilon)
+    progress_km_Z34 = mean_actions_km_Z34 / (mean_states_km_Z34 + epsilon)
+    progress_km_Z5_T1_T2 = mean_actions_km_Z5_T1_T2 / (mean_states_km_Z5_T1_T2 + epsilon)
+    progress_km_sprinting = mean_actions_km_sprinting / (mean_states_km_sprinting + epsilon)
         
-    median_running_progress =  np.median(progress_running.numpy())
+    median_running_progress =  np.median(progress_total_km.numpy())
 
-    return tf.nn.tanh(progress_running * 2.0) * 100, median_running_progress
+    progress_reward_total_km = tf.nn.tanh(1.5 * progress_total_km)
+    progress_km_sprinting = tf.nn.tanh(1.5 * progress_km_sprinting) * 0.1
+    progress_km_Z34 = tf.nn.tanh(1.5 * progress_km_Z34) * 0.2
+    progress_km_Z5_T1_T2 = tf.nn.tanh(1.5 * progress_km_Z5_T1_T2) * 0.2
+
+    progress_total_reward = progress_reward_total_km + progress_km_sprinting + progress_km_Z34 + progress_km_Z5_T1_T2
+
+    return  progress_total_reward, median_running_progress
 
 def get_injury_score(self, states, actions):
-    data = prepare_data_subjective_parameter_forecaster(states, actions)
-    data = self.predict_subjective_parameters(data)['output_0']
-    data = prepare_data_injury_model(data)
-    injury_scores = self.predict_injury_risk(data)['output_0']
+    last_14_days = prepare_data_subjective_parameter_forecaster(states=states, actions=actions, min_max_values=self.min_max_values, standardised_min_max_values=self.standardised_min_max_values)
+    subjective_params = self.predict_subjective_parameters(last_14_days)['output_0']
+    last_7_days = prepare_data_injury_model(last_14_days=last_14_days, subjective_params=subjective_params)
+    injury_scores = self.predict_injury_risk(last_7_days)['output_0']
 
     return injury_scores
 
@@ -86,20 +75,11 @@ def get_hard_penalty(states, actions, min_max_values, epoch):
     states_total_km = get_absolute_values(states['total km'], min_max_values,'total km')
     actions_total_km = get_absolute_values(actions['total km'], min_max_values,'total km')
 
-    states_strength_training = get_absolute_values(states['strength training'], min_max_values, 'strength training')
-    actions_strength_training = get_absolute_values(actions['strength training'], min_max_values, 'strength training')
-
-    states_hours_alternative = get_absolute_values(states['hours alternative'], min_max_values, 'hours alternative')
-    actions_hours_alternative = get_absolute_values(actions['hours alternative'], min_max_values, 'hours alternative')
-
-    condition = test_overall_load(states_total_km, actions_total_km, states_strength_training, actions_strength_training, states_hours_alternative, actions_hours_alternative)
+    condition = test_overall_load(states_total_km, actions_total_km)
 
     compliance_ratio = tf.round((tf.reduce_sum(tf.cast(tf.equal(condition, 0), tf.float32)) / tf.size(condition, out_type=tf.float32)) * 100 * 100) / 100
 
-    if epoch < 10:
-        HARD_PENALTY = 10
-    else:
-        HARD_PENALTY =  epoch #* compliance_ratio/100
+    HARD_PENALTY =  0.2 * epoch
 
     penalties = condition * HARD_PENALTY
    

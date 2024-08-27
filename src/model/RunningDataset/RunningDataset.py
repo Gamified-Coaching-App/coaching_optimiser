@@ -164,25 +164,15 @@ class RunningDataset:
         normalisation_method = 'athlete-history'
         norm_min=0
         self.data_normalised = self.normalise(self.data, method=normalisation_method, min=norm_min, days=days)
-        athlete_ids = self.data_normalised['Athlete ID']
-        self.data_reshaped = self.stack(self.data_normalised.drop(columns=self.fixed_columns), days)
+        X = self.stack(self.data_normalised.drop(columns=self.fixed_columns), days)
 
-        assert athlete_ids.shape[0] == self.data_reshaped.shape[0], "Mismatch in first dimension of athlete_ids and data_reshaped: {} vs {}".format(athlete_ids.shape[0], self.data_reshaped.shape[0])
-
-        X_train, X_test, athlete_ids_train, athlete_ids_test = train_test_split(self.data_reshaped, athlete_ids, train_size=train_ratio, random_state=12)
-        
         # Save the datasets
         os.makedirs('../data', exist_ok=True)
         with h5py.File('../data/processed_data.h5', 'w') as hf:
-            hf.create_dataset('X_train', data=X_train)
-            hf.create_dataset('X_test', data=X_test)
+            hf.create_dataset('X', data=X.astype(np.float32))
         
-        np.savetxt('../data/athlete_ids_train.csv', athlete_ids_train, delimiter=',', fmt='%.d')
-        np.savetxt('../data/athlete_ids_test.csv', athlete_ids_test, delimiter=',', fmt='%.d')
-        
-        print("Shapes of the datasets: X_train:", X_train.shape, "X_test:", X_test.shape)
-        print("Training and testing data saved to ../data/processed_data.h5")
-        print("Athlete IDs saved to ../data/athlete_ids_train.csv and ../data/athlete_ids_test.csv")
+        print("Shapes of the datasets: X:", X.shape)
+        print("Data saved to ../data/processed_data.h5")
 
 if __name__ == "__main__":
     dataset = RunningDataset()
