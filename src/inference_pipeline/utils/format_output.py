@@ -1,12 +1,9 @@
 def format_output(output, user_ids):
     feature_order = [
-        "numberSessions",
         "kmTotal",
         "kmZ3Z4",
         "kmZ5",
-        "kmSprint",
-        "hoursAlternative",
-        "numberStrengthSessions"
+        "kmSprint"
     ]
     
     formatted_output = {}
