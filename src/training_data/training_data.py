@@ -1,6 +1,9 @@
 import numpy as np
 import tensorflow as tf
 
+"""
+TrainingData class to have consistent data access interface for input and output data
+"""
 class TrainingData:
     def __init__(self, data):
         if not (isinstance(data, np.ndarray) or isinstance(data, tf.Tensor)):
@@ -9,7 +12,10 @@ class TrainingData:
    
     def __getitem__(self, index):
         return self.data[:, :, index]
-    
+
+"""
+InputData class as child class for states (10 variables)
+"""   
 class InputData(TrainingData):
     def __init__(self, data):
         if data.ndim != 3:
@@ -37,6 +43,9 @@ class InputData(TrainingData):
             raise KeyError(f"Invalid key. Valid keys are: {list(self.var_index_input())}")
         return super().__getitem__(self.var_index_input[key])
 
+"""
+OutputData class as child class for actions (4 variables)
+"""
 class OutputData(TrainingData):
     def __init__(self, data):
         if data.ndim != 3:

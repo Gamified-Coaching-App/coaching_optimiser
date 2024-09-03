@@ -6,6 +6,9 @@ import tensorflow as tf
 import sys
 import traceback
 
+"""
+key mapping for feature name mapping between coaching_processor and model
+"""
 KEY_MAPPING = {
     'numberSessions': 'nr. sessions',
     'kmTotal': 'total km',
@@ -19,6 +22,9 @@ KEY_MAPPING = {
     'perceivedTrainingSuccess': 'perceived trainingSuccess'
 }
 
+"""
+helper function to min-max normalise the data
+"""
 def normalise(standardised_data, min_max_values):
     for user_data in standardised_data:
         user_id = user_data['userId']
@@ -32,6 +38,9 @@ def normalise(standardised_data, min_max_values):
                         day_data[key] = (value - min_val) / (max_val - min_val)
     return standardised_data
 
+"""
+helper function to reshape data from dictionary to 3D array of shape (batch_size, days, features)
+"""
 def reshape(normalized_data, days=56):
     feature_order = [
         'numberSessions', 'kmTotal', 'kmZ3Z4', 'kmZ5', 'kmSprint',
@@ -50,6 +59,9 @@ def reshape(normalized_data, days=56):
     
     return np.array(batch_data)
 
+"""
+function to preprocess input data
+"""
 def preprocess(input_data, min_max_values):
     try:
         user_ids = [data['userId'] for data in input_data]
@@ -62,7 +74,6 @@ def preprocess(input_data, min_max_values):
     except Exception as e:
         exc_type, exc_obj, tb = sys.exc_info()
         lineno = tb.tb_lineno
-        filename = tb.tb_frame.f_code.co_filename  # Get the script name
+        filename = tb.tb_frame.f_code.co_filename 
 
-        # Print the error message along with the script name and line number
         print(f"Error in preprocess function!! {str(e)} in {filename} on line {lineno}")

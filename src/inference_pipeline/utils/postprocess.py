@@ -1,11 +1,17 @@
 from training_data.training_data import InputData, OutputData
 import numpy as np
 
+"""
+function to postprocess load targets after inference
+"""
 def postprocess(output, min_max_values):
     output_object = OutputData(output)   
      
     return convert_to_absolute_values(output_object, min_max_values)
 
+"""
+helper function to convert the normalised output to absolute values
+"""
 def convert_to_absolute_values(output_object, min_max_values):
     print("converting to absolute values...")
 
@@ -25,6 +31,9 @@ def convert_to_absolute_values(output_object, min_max_values):
     
     return stacked_result
 
+"""
+helper function to perform conversion to absolute values for one variable
+"""
 def get_absolute_values(data, min_max_values, variable='total km'):
     """
     Extracts and returns the absolute values of the specified variable from the data for all batches,

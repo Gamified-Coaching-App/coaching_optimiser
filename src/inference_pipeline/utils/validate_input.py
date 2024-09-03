@@ -1,24 +1,28 @@
-# Input data format:
-# [
-#   {
-#     "userId": "user1",
-#     "data": {
-#       "day21": {
-#         "numberSessions": 3,
-#         "kmTotal": 12.5,
-#         "kmZ3Z4": 4.5,
-#         "kmZ5": 1.2,
-#         "kmSprint": 0.8,
-#         "hoursAlternative": 2,
-#         "numberStrengthSessions": 2,
-#         "perceivedTrainingSuccess": 8,
-#         "perceivedRecovery": 6,
-#         "perceivedExertion": 7,
-#         "injured": false
-#       }, ...
-#       }, ...}
-#   }]
+"""
+function to validate input data, if it includes all required fields and has the correct format and data types
 
+
+Input data format:
+[
+  {
+    "userId": "user1",
+    "data": {
+      "day21": {
+        "numberSessions": 3,
+        "kmTotal": 12.5,
+        "kmZ3Z4": 4.5,
+        "kmZ5": 1.2,
+        "kmSprint": 0.8,
+        "hoursAlternative": 2,
+        "numberStrengthSessions": 2,
+        "perceivedTrainingSuccess": 8,
+        "perceivedRecovery": 6,
+        "perceivedExertion": 7,
+        "injured": false
+      }, ...
+      }, ...}
+  }]
+"""
 def validate_input(input_data, days=56):
 
     required_fields = {
@@ -47,7 +51,6 @@ def validate_input(input_data, days=56):
         if "data" not in user_data or not isinstance(user_data["data"], dict):
             return False
 
-        # Check that all days are included
         for day in range(1, days + 1):
             day_key = f"day{day}"
             if day_key not in user_data["data"]:

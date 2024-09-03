@@ -10,13 +10,13 @@ from environment.reward_functions.reward_functions import get_progress, get_inju
 import json
 from scipy.stats import pearsonr, spearmanr
 
+"""
+Environment class that provides the ContextualBandit with states and calculates rewards
+"""
 class Environment:
-    """
-    A simple environment that provides states and calculates rewards.
-    """
     def __init__(self, data):
         """
-        Initializes the environment with a dataset of states.
+        __init__ initialises the environment with a dataset of states, loads models to make predictions and loads min-max values
         """
         self.data = data
         self.subjective_parameter_forecaster = tf.saved_model.load('../../../coaching_subjective_parameter_forecast/model/subjective_parameter_forecaster')
@@ -31,14 +31,13 @@ class Environment:
 
     def get_states(self, indices):
         """
-        Retrieves a batch of states from the dataset at a specified rage index.
+        function retrieves a batch of states from the dataset at a specified rage index
         """
         return self.data[indices]
 
     def get_rewards(self, actions, states, epoch):
         """
-        Calculates the reward by combining outputs from progress and injury functions, and any penalties.
-        To-Do: Consider making the entire reawrd function non-differentiable using tf.stop_gradient.
+        function to compute rewards based on progress, injury risk and penalties
         """
         progress, median_running_progress = get_progress(states, actions, self.min_max_values)
         injury_scores = get_injury_score(self, states, actions)

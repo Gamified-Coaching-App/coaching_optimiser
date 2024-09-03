@@ -19,10 +19,16 @@ global_vars = {
     'min_max_values': None
 }
 
+"""
+on start up of container load model to S3 memory for future inference
+"""
 @app.on_event("startup")
 async def startup_event():
     await load_model(global_vars)
 
+"""
+endpoint for predictions: validate input, preprocess, make inference, postprocess and format output
+"""
 @app.post("/predict")
 async def predict_endpoint(request: Request):
     input = await request.json()
@@ -43,6 +49,9 @@ async def predict_endpoint(request: Request):
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)} on line {lineno}")
     return formatted_results
 
+"""
+endpoint for health checks, as required by AWS ECS
+"""
 @app.get("/health")
 async def health_check():
     return {"status": "Healthy"}

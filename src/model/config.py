@@ -1,3 +1,6 @@
+"""
+model configs for testing and evaluation
+"""
 model_configs = [
     {
         'name': 'LSTM+Dense',

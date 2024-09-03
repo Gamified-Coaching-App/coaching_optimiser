@@ -1,3 +1,6 @@
+"""
+function to format output as required by processing of the callee (coaching_processor)
+"""
 def format_output(output, user_ids):
     print("formatting output...")
     feature_order = [

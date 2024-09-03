@@ -111,13 +111,11 @@ class RunningDataset:
         elif method == 'athlete-history':
             long = self.long_form(dataset)
 
-            # Save standardised parameters for inference to injury model
             self.save_stdv_mean_per_athlete(long)
-            # Save min max for enforcing hard penalties
+
             self.save_min_max_values(long, '../../../model_export/', 'min_max_values.json')
             self.save_min_max_values(long, '../data/', 'min_max_values.json')
 
-            # Use copy, because otherwise the original dataframe will be modified
             standardised = self.z_score_normalization(long.copy())
             self.save_min_max_values(standardised, '../data/', 'standardised_min_max_values.json')            
             long = self.min_max_normalization(long)
@@ -130,8 +128,8 @@ class RunningDataset:
         df = df.drop(columns=self.fixed_columns)
         min_max_dict = {
         col: {
-            'min': df[col].min().item(),  # Convert to native Python type
-            'max': df[col].max().item()   # Convert to native Python type
+            'min': df[col].min().item(),  
+            'max': df[col].max().item()  
         }
         for col in df.columns
         }
@@ -142,8 +140,8 @@ class RunningDataset:
     
     def stack(self, df, days):
         df = self.reorder_columns(df, days)
-        num_variables = 10  # Total number of different variables (features)
-        time_steps_per_variable = days  # Number of time steps per variable
+        num_variables = 10  
+        time_steps_per_variable = days 
         num_samples = len(df)
         reshaped_data = np.zeros((num_samples, time_steps_per_variable, num_variables))
         
@@ -154,7 +152,6 @@ class RunningDataset:
                 end_col = start_col + time_steps_per_variable
                 temp_row[var_index, :] = row.iloc[start_col:end_col].values
             
-            # Transpose temp_row to switch the order of variables and time steps
             temp_row = temp_row.T
             reshaped_data[index, :, :] = temp_row 
         return reshaped_data
@@ -166,7 +163,6 @@ class RunningDataset:
         self.data_normalised = self.normalise(self.data, method=normalisation_method, min=norm_min, days=days)
         X = self.stack(self.data_normalised.drop(columns=self.fixed_columns), days)
 
-        # Save the datasets
         os.makedirs('../data', exist_ok=True)
         with h5py.File('../data/processed_data.h5', 'w') as hf:
             hf.create_dataset('X', data=X.astype(np.float32))

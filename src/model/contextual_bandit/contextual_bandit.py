@@ -5,20 +5,14 @@ from tensorflow.keras.models import load_model
 from keras_nlp.layers import TransformerEncoder, TransformerDecoder
 from contextual_bandit.OutputLayer.OutputLayer import OutputLayer
 
+"""
+ContextualBandit class represents model learning optimisation
+"""
 class ContextualBandit(tf.Module):
     """
-    This class implements a contextual bandit with a neural network to predict the best action 
-    given a state and an ε-greedy strategy for exploration.
+    __init__ initialises the ContextualBandit class by setting up model based on @config, connecting to environment @env
     """
     def __init__(self, state_shape, action_shape, env, config):
-        """
-        Initializes the contextual bandit.
-
-        Parameters:
-        - state_shape: The dimension of the input feature vector (state).
-        - action_shape: The dimension of the output vector (action).
-        - env: Instance of environment to interact with during gradient descent.
-        """
         super(ContextualBandit, self).__init__()
         self.state_shape = state_shape
         self.action_shape = action_shape
@@ -30,7 +24,7 @@ class ContextualBandit(tf.Module):
                 decay_steps=config['learning_rate_schedule']['decay_steps'],
                 warmup_target=config['learning_rate_schedule']['target_learning_rate'],
                 warmup_steps=config['learning_rate_schedule']['warmup_steps'],
-                alpha=config['learning_rate_schedule']['alpha']  # Set to a fraction of the initial LR as the minimum LR after decay
+                alpha=config['learning_rate_schedule']['alpha'] 
             )
         else:
             lr = config['learning_rate']
@@ -47,12 +41,7 @@ class ContextualBandit(tf.Module):
     def create_model(self, config):
         """
         Creates the neural network model based on the given configuration.
-
-        Args:
-        config (dict): Configuration dictionary for the model.
-
-        Returns:
-        model (tf.keras.Model): Compiled neural network model.
+        Returns compiled model
         """
         original_input = layers.Input(shape=self.state_shape, name='original_input')
         x = original_input
@@ -180,7 +169,7 @@ class ContextualBandit(tf.Module):
 
     def get_actions(self, states, training=False):
         """
-        Generates actions based on model predictions.
+        Generates actions based on model predictions
         """
         actions = self.model(states, training=training)
         if tf.reduce_any(tf.math.is_nan(actions)):
@@ -191,7 +180,7 @@ class ContextualBandit(tf.Module):
 
     def train(self, states, epoch):
         """
-        Trains the model using states from the environment and corresponding rewards.
+        Trains the model using states from the environment and computing the corresponding rewards
         """
         with tf.GradientTape() as tape:
             actions = self.get_actions(states, training=True)
@@ -207,12 +196,7 @@ class ContextualBandit(tf.Module):
     def test(self, test_states, epoch):
         """
         Tests the model using the given test set, makes inferences, and evaluates using the environment.
-        
-        Parameters:
-        - test_states: The test set of input states.
-        
-        Returns:
-        - rewards: The rewards obtained from the environment based on the model's actions.
+        @epoch is equal to last training epoch + 1
         """
         actions = self.get_actions(test_states, training=False)
         rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, test_states, epoch)

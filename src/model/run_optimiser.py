@@ -1,6 +1,5 @@
 from environment.environment import Environment
 from contextual_bandit.contextual_bandit import ContextualBandit
-from report.utils import add_to_report, save_report
 from collections import defaultdict
 import tensorflow as tf
 import h5py
@@ -12,7 +11,9 @@ import math
 from sklearn.model_selection import train_test_split, KFold
 from datetime import datetime
 
-
+"""
+helper function to configure GPU
+"""
 def configure_gpu():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     if gpus:
@@ -25,6 +26,10 @@ def configure_gpu():
     else: 
         print("No GPUs available.")
 
+"""
+function to train optimiser based on mode (either final_training or cross_validation). Create train-val-test split 
+and train the model, add data to report and save report
+"""
 def train_optimiser(mode): 
     timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     configure_gpu()

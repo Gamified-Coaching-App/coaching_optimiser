@@ -128,8 +128,8 @@ def test_get_absolute_values_perceived_recovery():
     tf.debugging.assert_equal(expected_output[1], original_data_1)
 
 def print_tensor_for_code(tensor):
-    tensor_np = tensor.numpy()  # Convert tensor to numpy array
-    tensor_list = tensor_np.tolist()  # Convert numpy array to list
+    tensor_np = tensor.numpy()  
+    tensor_list = tensor_np.tolist() 
     print("[")
     for sublist in tensor_list:
         print("[", end="")
@@ -143,16 +143,6 @@ def test_smooth_count():
     result= smooth_count(input)
     print("count result", result)
     tf.debugging.assert_equal(False, True)
-
-
-# # Check if gradient flow is maintained
-# with tf.GradientTape() as tape:
-#     tape.watch(input_data)
-#     result = tf.reduce_sum(inputs['nr. sessions']) + tf.reduce_sum(outputs['total km'])
-
-# # Compute gradients
-# grads = tape.gradient(result, input_data)
-# print("Gradients computed successfully:", grads is not None)
 
 if __name__ == "__main__":
     pytest.main([__file__, '-s'])

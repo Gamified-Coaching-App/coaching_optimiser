@@ -10,11 +10,15 @@ if src_path not in sys.path:
 from model.environment.reward_functions.utils.utils import *
 from training_data.training_data import InputData, OutputData
 
+
+"""
+function to compute pregress for each variable and return the total reward, using 
+a saturation mechanism using Tanh function
+"""
 def get_progress(states, actions, min_max_values):
     states = InputData(states)
     actions = OutputData(actions)
 
-    # Calculate absolute values for all metrics
     states_total_km = get_absolute_values(states['total km'], min_max_values, 'total km')
     actions_total_km = get_absolute_values(actions['total km'], min_max_values, 'total km')
 
@@ -27,7 +31,6 @@ def get_progress(states, actions, min_max_values):
     states_km_sprinting = get_absolute_values(states['km sprinting'], min_max_values, 'km sprinting')
     actions_km_sprinting = get_absolute_values(actions['km sprinting'], min_max_values, 'km sprinting')
 
-    # Compute mean values for the last 28 days for states and overall for actions
     mean_states_total_km = tf.reduce_mean(states_total_km[:, -28:], axis=1)
     mean_actions_total_km = tf.reduce_mean(actions_total_km, axis=1)
 
@@ -42,7 +45,6 @@ def get_progress(states, actions, min_max_values):
 
     epsilon = 0.01
 
-    # Calculate progress for each metric
     progress_total_km = mean_actions_total_km / (mean_states_total_km + epsilon)
     progress_km_Z34 = mean_actions_km_Z34 / (mean_states_km_Z34 + epsilon)
     progress_km_Z5_T1_T2 = mean_actions_km_Z5_T1_T2 / (mean_states_km_Z5_T1_T2 + epsilon)
@@ -59,6 +61,9 @@ def get_progress(states, actions, min_max_values):
 
     return  progress_total_reward, median_running_progress
 
+"""
+function to get the injury score for the last 7 days and return the injury score
+"""
 def get_injury_score(self, states, actions):
     last_14_days = prepare_data_subjective_parameter_forecaster(states=states, actions=actions, min_max_values=self.min_max_values, standardised_min_max_values=self.standardised_min_max_values)
     subjective_params = self.predict_subjective_parameters(last_14_days)['output_0']
@@ -67,6 +72,9 @@ def get_injury_score(self, states, actions):
 
     return injury_scores
 
+"""
+function to get the penalties for the workout plans and return the penalties. Compute compliance ratios and return this as well
+"""
 def get_hard_penalty(states, actions, min_max_values, epoch):
 
     states = InputData(states)

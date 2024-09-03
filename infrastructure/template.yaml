@@ -224,8 +224,8 @@ Resources:
             LogDriver: awslogs
             Options:
               awslogs-group: CoachingOptimiser
-              awslogs-region: eu-west-2  # Use the region where your CloudWatch Logs group is located
-              awslogs-stream-prefix: ecs  # A prefix for the log stream name
+              awslogs-region: eu-west-2 
+              awslogs-stream-prefix: ecs 
     
   CoachingOptimiserECSService:
     Type: AWS::ECS::Service

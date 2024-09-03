@@ -1,3 +1,6 @@
+"""
+configuration of thresholds for OutputLayer
+"""
 config = {
     'lower_thresholds': {
         'nr. sessions': 0.0,
