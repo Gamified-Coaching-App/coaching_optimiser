@@ -15,6 +15,9 @@ import json
 class OutputLayer enforces contraints directly on the model output
 """
 class OutputLayer(layers.Layer):
+    """
+    __init__ function loads the min_max_values from the json file and scales the threshold values to the normalised range
+    """
     def __init__(self):
         super(OutputLayer, self).__init__()
         with open('data/min_max_values.json', 'r') as file:

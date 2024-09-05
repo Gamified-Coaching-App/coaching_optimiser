@@ -35,11 +35,6 @@ def convert_to_absolute_values(output_object, min_max_values):
 helper function to perform conversion to absolute values for one variable
 """
 def get_absolute_values(data, min_max_values, variable='total km'):
-    """
-    Extracts and returns the absolute values of the specified variable from the data for all batches,
-    Input has shape [batch_size, time_steps]
-    Output has shape [batch_size, time_steps]
-    """
     min = min_max_values[variable]['min']
     max = min_max_values[variable]['max']
     absolute = data * (max - min) + min

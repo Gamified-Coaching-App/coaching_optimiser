@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 """
-TrainingData class to have consistent data access interface for input and output data
+TrainingData class to have consistent data access interface for input and output data of the model (states and actions)
 """
 class TrainingData:
     def __init__(self, data):

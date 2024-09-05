@@ -7,8 +7,11 @@ import json
 import h5py
 from sklearn.model_selection import train_test_split
 
-
+"""
+RunningDataset class manages operations related to loading and processing data.
+"""
 class RunningDataset:
+    """__init__ initialises the dataset with predetermined parameters."""
     def __init__(self):
         self.filename = '../../../data/day_approach_maskedID_timeseries.csv'
         self.WINDOW_DAYS = 7
@@ -25,6 +28,9 @@ class RunningDataset:
         self.standard_scaler = StandardScaler()
         self.min_max_scaler = MinMaxScaler()
 
+    """
+    function to reorder the columns in the dataset before stacking
+    """
     def reorder_columns(self, data, days):
         n = 10 * days
         new_order = []
@@ -33,6 +39,9 @@ class RunningDataset:
         data = data.iloc[:, new_order]
         return data
 
+    """
+    function converts the dataset to long format required for normalising
+    """
     def long_form(self, df):
         df_long = pd.wide_to_long(df, stubnames=self.base_metrics, i=self.fixed_columns, j='Offset', sep='.')
         df_long.reset_index(inplace=True)
@@ -41,6 +50,9 @@ class RunningDataset:
         df_long.drop_duplicates(subset=self.identifiers, keep='first', inplace=True)
         return df_long
     
+    """
+    function applies z-score normalisation grouped by athlete to each metric in the dataframe
+    """
     def z_score_normalization(self, df):
         for metric in self.base_metrics:
             df[metric] = df.groupby([self.identifiers[0]])[metric].transform(
@@ -48,6 +60,9 @@ class RunningDataset:
             )
         return df.reset_index(drop=True)
     
+    """
+    function saves mean and stdv of each metric per athlete to a json file for later use
+    """
     def save_stdv_mean_per_athlete(self, df):
         mean_stdv_dict = {}
         for athlete in df[self.identifiers[0]].unique():
@@ -61,11 +76,17 @@ class RunningDataset:
         with open('../data/mean_stdv.json', 'w') as f:
             json.dump(mean_stdv_dict, f)
     
+    """
+    function applies min-max normalisation to each metric in the dataframe
+    """
     def min_max_normalization(self, df):
         for metric in self.base_metrics:
             df[metric] = self.min_max_scaler.fit_transform(df[metric].values.reshape(-1, 1)).flatten()
         return df.reset_index(drop=True)
     
+    """
+    function converts the dataset from long format to wide format after normalisation
+    """
     def wide_form(self, df_long, days):
         df_long['Date'] = df_long['Date'].astype(int)
         df_long['Athlete ID'] = df_long['Athlete ID'].astype(int)
@@ -87,6 +108,10 @@ class RunningDataset:
         df_rolled = df_rolled.astype(dict(zip(df_rolled.columns, self.data_types_metrics * days + self.data_types_fixed_columns)))
         return df_rolled
     
+    """
+    function fills in missing dates for each athlete to ensure continuity in the data set - 
+    needed if the athlete has not recorded data for a specific date
+    """
     def fill_missing_dates(self, group):
         min_date = group[self.identifiers[1]].min()
         max_date = group[self.identifiers[1]].max()
@@ -95,6 +120,9 @@ class RunningDataset:
         group[self.identifiers[0]] = group[self.identifiers[0]].ffill()
         return group
     
+    """
+    function normalises the dataset using the specified method and saves normalisation values to a json file for later use during model training
+    """
     def normalise(self, dataset, method = 'sliding-window', min=0, days=14):
         if method == 'sliding-window':
             normalized_data = pd.DataFrame(index=dataset.index, columns=dataset.columns, data=0.0)
@@ -124,6 +152,9 @@ class RunningDataset:
         else:
             raise ValueError("Invalid normalization method")
 
+    """
+    function saves min-max values for later use during model training - needed, e.g., for enforcing constraints based on absolute values
+    """
     def save_min_max_values(self, df, export_path, filename):
         df = df.drop(columns=self.fixed_columns)
         min_max_dict = {
@@ -138,6 +169,10 @@ class RunningDataset:
             json.dump(min_max_dict, f)
         print(f"File {filename} saved to {export_path+filename}")
     
+    """
+    function converts data from 2D shape (no_samples, no_variables * no_time_steps), i.e., (N, 140) to 
+    3D shape (no_samples, no_timesteps, no_variables), i.e., (N, 14, 10)
+    """
     def stack(self, df, days):
         df = self.reorder_columns(df, days)
         num_variables = 10  
@@ -156,6 +191,9 @@ class RunningDataset:
             reshaped_data[index, :, :] = temp_row 
         return reshaped_data
 
+    """
+    function normalises, stacks and masks data for training
+    """
     def preprocess(self, days=56, train_ratio=0.85):
         print("Preprocessing data...")
         normalisation_method = 'athlete-history'

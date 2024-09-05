@@ -37,12 +37,12 @@ class ContextualBandit(tf.Module):
         else:
             self.optimizer = optimizers.Adadelta(learning_rate=config['learning_rate'])
             print("Using Adadelta optimizer")
-        
+    
+    """
+    function creates the neural network model based on the given configuration.
+    Returns compiled model
+    """
     def create_model(self, config):
-        """
-        Creates the neural network model based on the given configuration.
-        Returns compiled model
-        """
         original_input = layers.Input(shape=self.state_shape, name='original_input')
         x = original_input
 
@@ -167,10 +167,10 @@ class ContextualBandit(tf.Module):
                 model = models.Model(inputs=original_input, outputs=output)
                 return model 
 
+    """
+    function generates actions based on model predictions
+    """
     def get_actions(self, states, training=False):
-        """
-        Generates actions based on model predictions
-        """
         actions = self.model(states, training=training)
         if tf.reduce_any(tf.math.is_nan(actions)):
             if tf.reduce_any(tf.math.is_nan(states)):
@@ -178,10 +178,10 @@ class ContextualBandit(tf.Module):
             raise ValueError("NaN values found in the 'actions' tensor.")
         return actions
 
+    """
+    function trains the model using states from the environment and computing the corresponding rewards
+    """
     def train(self, states, epoch):
-        """
-        Trains the model using states from the environment and computing the corresponding rewards
-        """
         with tf.GradientTape() as tape:
             actions = self.get_actions(states, training=True)
             rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, states, epoch)
@@ -193,11 +193,11 @@ class ContextualBandit(tf.Module):
         self.optimizer.apply_gradients(zip(gradients, self.model.trainable_variables))
         return -loss, all_gradients_zero, median_running_progress, compliance_ratio
     
+    """
+    function tests the model using the given test set, makes inferences, and evaluates using the environment.
+    @epoch is equal to last training epoch + 1
+    """
     def test(self, test_states, epoch):
-        """
-        Tests the model using the given test set, makes inferences, and evaluates using the environment.
-        @epoch is equal to last training epoch + 1
-        """
         actions = self.get_actions(test_states, training=False)
         rewards, median_running_progress, compliance_ratio = self.env.get_rewards(actions, test_states, epoch)
         loss = -tf.reduce_mean(rewards)
