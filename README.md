@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source code for the Load Optimiser
+Source code for the Load Optimiser.
 
 ## Directory Structure
 
@@ -16,4 +16,6 @@ src/
     │   ├── config.py               # Configuration file for model hyperparameters and settings
     │   └── run_optimiser.py        # Main script to run the model training pipeline
 
-  
+    ├── inference_pipeline/
+    │   ├── utils/                  # Utility functions for data validation, preprocessing, inference, postprocessing
+    │   ├── app.py                  # Main script for running the inference pipeline
